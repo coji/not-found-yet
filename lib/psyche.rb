@@ -112,6 +112,10 @@ module Psyche
         d["fatigue"] += 0.004
         d["self_preservation"] += 0.002
       end
+      # 自分で作った分類にも、自分で決めた小さな効きがある。
+      if (learned = LearnedFamilies.psyche_for(event["family"]))
+        learned.each { |k, v| d[k] += clamp_delta(v.to_f, 0.02) if STATES.include?(k) }
+      end
       d["fatigue"] += 0.002
       case event["behavior"]
       when "single_returning"

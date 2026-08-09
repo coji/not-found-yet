@@ -176,6 +176,48 @@ class MutationTest < Minitest::Test
     assert_equal 1, EvolutionJournal.entries.length
   end
 
+  # ---- 正規化は冪等でなければならない ------------------------------------
+  #
+  # replay は manifest に入った「正規化済みの intent」を、同じ validator へ
+  # もう一度通す。validator が自分の出力を読めない形にすると、その世代から
+  # 先が cold start で化石化する。新しい intent を足すたびにここが守り。
+
+  def test_normalising_an_intent_twice_changes_nothing
+    apply_intent("type" => "add_route", "path" => "/garden", "title" => "g",
+                 "lines" => ["ここ"], "content_type" => "text/plain")
+
+    samples = [
+      { "type" => "no_change" },
+      { "type" => "rewrite_absence_voice",
+        "templates" => [{ "family" => "*", "lines" => ["{path} はない。"] }], "max_length" => 200 },
+      { "type" => "add_route", "path" => "/well", "title" => "w",
+        "lines" => ["深い"], "content_type" => "text/plain" },
+      { "type" => "retire_route", "path" => "/garden", "gone" => true },
+      { "type" => "wrap_method", "method" => "respond_to_absence",
+        "transforms" => [{ "op" => "truncate", "chars" => 80 }] },
+      { "type" => "adjust_desire_weights", "deltas" => { "curiosity" => 0.05 } },
+      { "type" => "add_reflex_condition",
+        "rule" => { "when" => { "family" => "secret_probe", "hour_from" => 22, "hour_to" => 5 },
+                    "do" => { "hesitate_ms" => 300, "shorten_to" => 60 } } },
+      { "type" => "add_reflex_condition",
+        "rule" => { "when" => { "psyche_state" => "fear", "psyche_above" => 0.4 },
+                    "do" => { "redirect_to" => "/garden" } } },
+      { "type" => "speak_to_machines", "surface" => "/llms.txt", "lines" => ["ここには何もない。"] },
+      { "type" => "invent_family", "family_name" => "夜の客", "match_shape" => "prefix",
+        "match_value" => "/night", "deltas" => { "loneliness" => -0.01 } },
+      { "type" => "forget_family", "family_name" => "imagined_place" }
+    ]
+
+    samples.each do |raw|
+      ok1, once = MutationIntent.validate(raw)
+      assert ok1, "#{raw['type']}: #{once}"
+
+      ok2, twice = MutationIntent.validate(once)
+      assert ok2, "#{raw['type']} failed on its own output: #{twice}"
+      assert_equal once, twice, "#{raw['type']} is not idempotent"
+    end
+  end
+
   # ---- 展示用 source -----------------------------------------------------
 
   def test_exhibit_source_is_valid_ruby_but_not_the_replay_source

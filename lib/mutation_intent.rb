@@ -10,6 +10,10 @@ module MutationIntent
     retire_route
     wrap_method
     adjust_desire_weights
+    add_reflex_condition
+    speak_to_machines
+    invent_family
+    forget_family
     no_change
   ].freeze
 
@@ -22,6 +26,7 @@ module MutationIntent
   MAX_LINES = 6
   MAX_LINE_CHARS = 200
   MAX_TRANSFORMS = 4
+  BEHAVIORS = %w[first_touch single_returning broad_scanner periodic_reader claimed_bot].freeze
   MAX_TEXT_CHARS = 200
 
   # 制御文字・改行・HTML を含む文字列は、そもそも受け取らない。
@@ -159,6 +164,137 @@ module MutationIntent
     [true, { "type" => "adjust_desire_weights", "deltas" => normalized }]
   end
 
+  # ふるまいの規則。何を言うかではなく、どう応じるか。
+  #
+  # 正規化しても key の名前を変えない。replay は同じ validator を通るので、
+  # 出力を再検証できない形にすると cold start で化石化する。
+  def validate_add_reflex_condition(intent)
+    rule = intent["rule"]
+    return [false, "rule must be an object"] unless rule.is_a?(Hash)
+
+    w = rule["when"]
+    d = rule["do"]
+    return [false, "when must be an object"] unless w.is_a?(Hash)
+    return [false, "do must be an object"] unless d.is_a?(Hash)
+
+    cond = {}
+    if w["family"]
+      return [false, "unknown family"] unless LearnedFamilies.known?(w["family"])
+
+      cond["family"] = w["family"]
+    end
+    if w["behavior"]
+      return [false, "unknown behavior"] unless BEHAVIORS.include?(w["behavior"])
+
+      cond["behavior"] = w["behavior"]
+    end
+    if w["hour_from"] && w["hour_to"]
+      a = clamp_int(w["hour_from"], 0, 23, 0)
+      b = clamp_int(w["hour_to"], 0, 23, 0)
+      return [false, "empty hour window"] if a == b
+
+      cond["hour_from"] = a
+      cond["hour_to"] = b
+    end
+    if w["psyche_state"]
+      return [false, "unknown desire"] unless Psyche::STATES.include?(w["psyche_state"])
+
+      cond["psyche_state"] = w["psyche_state"]
+      cond["psyche_above"] = [[w["psyche_above"].to_f, 0.0].max, 1.0].min
+    end
+    cond["seen_at_least"] = clamp_int(w["seen_at_least"], 1, 100, 2) if w["seen_at_least"]
+    cond["near_miss"] = true if w["near_miss"] == true
+    cond["silence_over_minutes"] = clamp_int(w["silence_over_minutes"], 1, 1440, 60) if w["silence_over_minutes"]
+    return [false, "condition must say something"] if cond.empty?
+
+    act = {}
+    act["hesitate_ms"] = clamp_int(d["hesitate_ms"], 50, ReflexConditions::MAX_HESITATE_MS, 400) if d["hesitate_ms"]
+    act["silence"] = true if d["silence"] == true
+    if d["status"]
+      st = d["status"].to_i
+      return [false, "status not allowed"] unless ReflexConditions::STATUSES.include?(st)
+
+      act["status"] = st
+    end
+    if d["redirect_to"]
+      # 連れて行けるのは、自分が既に持っている場所だけ。
+      return [false, "can only redirect to an organ it already has"] unless DynamicRoutes.lookup(d["redirect_to"])
+
+      act["redirect_to"] = d["redirect_to"]
+    end
+    act["shorten_to"] = clamp_int(d["shorten_to"], 16, 400, 120) if d["shorten_to"]
+    return [false, "action must do something"] if act.empty?
+    return [false, "silence and status conflict"] if act["silence"] && act["status"]
+
+    normalized = { "type" => "add_reflex_condition", "rule" => { "when" => cond, "do" => act } }
+    # 既にある規則と同じなら、上限には数えない（replay で自分自身を数えないため）。
+    unless ReflexConditions.rules.include?(normalized["rule"])
+      return [false, "too many rules"] if ReflexConditions.count >= ReflexConditions::MAX_RULES
+    end
+
+    [true, normalized]
+  end
+
+  # 機械に話しかける。命令はできない。
+  def validate_speak_to_machines(intent)
+    path = intent["surface"]
+    return [false, "surface not allowed"] unless MachineSurfaces.allowed?(path)
+
+    lines = intent["lines"]
+    return [false, "lines must be safe, non-imperative and link-free"] unless MachineSurfaces.safe_lines?(lines)
+
+    [true, { "type" => "speak_to_machines", "surface" => path, "lines" => lines }]
+  end
+
+  # 自分の分類を作る。曖昧だったものにしか効かない。
+  def validate_invent_family(intent)
+    name = intent["family_name"].to_s
+    return [false, "unsafe name"] unless name.match?(SAFE_TEXT) && !name.empty?
+    return [false, "name too long"] if name.length > LearnedFamilies::MAX_NAME
+    return [false, "that family already exists"] if RequestAirlock::BUILT_IN_FAMILIES.include?(name)
+    if LearnedFamilies.count >= LearnedFamilies::MAX && !LearnedFamilies.names.include?(name)
+      return [false, "too many families"]
+    end
+
+    shape = intent["match_shape"].to_s
+    return [false, "unknown shape"] unless LearnedFamilies::SHAPES.include?(shape)
+
+    value = intent["match_value"]
+    normalized_value =
+      case shape
+      when "max_length" then clamp_int(value, 2, Config::MAX_DISPLAY_PATH_CHARS, 16)
+      when "script"
+        return [false, "unknown script"] unless LearnedFamilies::SCRIPTS.include?(value.to_s)
+
+        value.to_s
+      else
+        v = value.to_s
+        return [false, "unsafe match value"] unless v.match?(SAFE_TEXT) && v.length.between?(1, 24)
+
+        v
+      end
+
+    deltas = {}
+    (intent["deltas"] || {}).each do |k, v|
+      next if v.nil?
+      next unless Psyche::STATES.include?(k)
+
+      deltas[k] = [[v.to_f, -0.02].max, 0.02].min
+    end
+
+    [true, { "type" => "invent_family", "family_name" => name,
+             "match_shape" => shape, "match_value" => normalized_value, "deltas" => deltas }]
+  end
+
+  # 見えなくする。自傷としての忘却で、これは本当に失われる。
+  def validate_forget_family(intent)
+    name = intent["family_name"].to_s
+    known = LearnedFamilies.names.include?(name) || LearnedFamilies.blind.include?(name)
+    return [false, "cannot go blind to that"] unless known || LearnedFamilies::BLINDABLE.include?(name)
+
+    [true, { "type" => "forget_family", "family_name" => name }]
+  end
+
   def clamp_int(value, min, max, default)
     n = Integer(value) rescue default
     [[n, min].max, max].min
@@ -173,6 +309,10 @@ module MutationIntent
     when "wrap_method" then 0.03 * intent["transforms"].length
     when "retire_route" then -0.08
     when "adjust_desire_weights" then 0.01
+    when "add_reflex_condition" then 0.06
+    when "speak_to_machines" then 0.04 + 0.005 * intent["lines"].length
+    when "invent_family" then 0.05
+    when "forget_family" then -0.04
     else 0.0
     end.round(3)
   end
@@ -184,6 +324,10 @@ module MutationIntent
     when "wrap_method" then "wrap_method #{intent['method']} (#{intent['transforms'].map { |t| t['op'] }.join(', ')})"
     when "rewrite_absence_voice" then "rewrite_absence_voice (#{intent['templates'].length} templates)"
     when "adjust_desire_weights" then "adjust_desire_weights #{intent['deltas'].keys.join(', ')}"
+    when "add_reflex_condition" then "add_reflex_condition #{ReflexConditions.describe(intent['rule'])}"
+    when "speak_to_machines" then "speak_to_machines #{intent['surface']}"
+    when "invent_family" then "invent_family #{intent['family_name']} (#{intent['match_shape']}: #{intent['match_value']})"
+    when "forget_family" then "forget_family #{intent['family_name']}"
     else intent["type"].to_s
     end
   end
@@ -223,7 +367,8 @@ module MutationIntent
     {
       "type" => "object",
       "additionalProperties" => false,
-      "required" => %w[type path title lines content_type templates max_length method transforms deltas gone],
+      "required" => %w[type path title lines content_type templates max_length method transforms deltas gone
+                       rule surface family_name match_shape match_value],
       "properties" => {
         "type" => { "type" => "string", "enum" => TYPES },
         "path" => nullable({ "type" => "string" }),
@@ -263,7 +408,49 @@ module MutationIntent
           "required" => Psyche::STATES,
           "properties" => Psyche::STATES.to_h { |s| [s, nullable({ "type" => "number" })] }
         }),
-        "gone" => nullable({ "type" => "boolean" })
+        "gone" => nullable({ "type" => "boolean" }),
+
+        # ふるまいの規則。条件も動作も列挙で、任意の式は入らない。
+        "rule" => nullable({
+          "type" => "object",
+          "additionalProperties" => false,
+          "required" => %w[when do],
+          "properties" => {
+            "when" => {
+              "type" => "object",
+              "additionalProperties" => false,
+              "required" => %w[family behavior hour_from hour_to psyche_state psyche_above
+                               seen_at_least near_miss silence_over_minutes],
+              "properties" => {
+                "family" => nullable({ "type" => "string" }),
+                "behavior" => nullable({ "type" => "string", "enum" => BEHAVIORS }),
+                "hour_from" => nullable({ "type" => "integer" }),
+                "hour_to" => nullable({ "type" => "integer" }),
+                "psyche_state" => nullable({ "type" => "string", "enum" => Psyche::STATES }),
+                "psyche_above" => nullable({ "type" => "number" }),
+                "seen_at_least" => nullable({ "type" => "integer" }),
+                "near_miss" => nullable({ "type" => "boolean" }),
+                "silence_over_minutes" => nullable({ "type" => "integer" })
+              }
+            },
+            "do" => {
+              "type" => "object",
+              "additionalProperties" => false,
+              "required" => %w[hesitate_ms silence status redirect_to shorten_to],
+              "properties" => {
+                "hesitate_ms" => nullable({ "type" => "integer" }),
+                "silence" => nullable({ "type" => "boolean" }),
+                "status" => nullable({ "type" => "integer", "enum" => ReflexConditions::STATUSES }),
+                "redirect_to" => nullable({ "type" => "string" }),
+                "shorten_to" => nullable({ "type" => "integer" })
+              }
+            }
+          }
+        }),
+        "surface" => nullable({ "type" => "string", "enum" => MachineSurfaces::ALLOWED }),
+        "family_name" => nullable({ "type" => "string" }),
+        "match_shape" => nullable({ "type" => "string", "enum" => LearnedFamilies::SHAPES }),
+        "match_value" => nullable({ "type" => "string" })
       }
     }
   end

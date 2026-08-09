@@ -112,6 +112,10 @@ module TrustedMutator
     when "add_route" then apply_add_route(intent, generation)
     when "retire_route" then apply_retire_route(intent, generation)
     when "adjust_desire_weights" then apply_desire(intent, generation)
+    when "add_reflex_condition" then apply_reflex(intent, generation)
+    when "speak_to_machines" then apply_machine_surface(intent, generation)
+    when "invent_family" then apply_invent_family(intent, generation)
+    when "forget_family" then apply_forget_family(intent, generation)
     else raise ArgumentError, "unreachable intent type"
     end
   end
@@ -193,6 +197,32 @@ module TrustedMutator
     applied
   end
 
+  def apply_reflex(intent, generation)
+    snapshot = ReflexConditions.snapshot
+    RollbackRegistry.push(generation) { ReflexConditions.restore(snapshot) }
+    ReflexConditions.add(intent["rule"])
+  end
+
+  def apply_machine_surface(intent, generation)
+    snapshot = MachineSurfaces.snapshot
+    RollbackRegistry.push(generation) { MachineSurfaces.restore(snapshot) }
+    MachineSurfaces.add(path: intent["surface"], lines: intent["lines"], generation: generation)
+  end
+
+  def apply_invent_family(intent, generation)
+    snapshot = LearnedFamilies.snapshot
+    RollbackRegistry.push(generation) { LearnedFamilies.restore(snapshot) }
+    LearnedFamilies.add("name" => intent["family_name"],
+                        "match" => { intent["match_shape"] => intent["match_value"] },
+                        "psyche" => intent["deltas"])
+  end
+
+  def apply_forget_family(intent, generation)
+    snapshot = LearnedFamilies.snapshot
+    RollbackRegistry.push(generation) { LearnedFamilies.restore(snapshot) }
+    LearnedFamilies.blind!(intent["family_name"])
+  end
+
   # ---- 検証 --------------------------------------------------------------
 
   # 展示用 source を構文チェックする。通らないものは applied にしない。
@@ -210,6 +240,7 @@ module TrustedMutator
 
     checks = [["/", 200], ["/status", 200], ["/mutations", 200], ["/__smoke__#{rand(1 << 20)}", [404, 410]]]
     checks << [intent["path"], 200] if intent["type"] == "add_route"
+    checks << [intent["surface"], 200] if intent["type"] == "speak_to_machines"
 
     mock = Rack::MockRequest.new(app)
     checks.each do |path, expected|
@@ -275,6 +306,14 @@ module TrustedMutator
       "DynamicRoutes.retire(#{intent['path'].inspect}, gone: #{intent['gone']})\n"
     when "adjust_desire_weights"
       "Psyche.adjust!(#{pp_literal(intent['deltas'])})\n"
+    when "add_reflex_condition"
+      "# #{ReflexConditions.describe(intent['rule'])}\nReflexConditions.add(#{pp_literal(intent['rule'])})\n"
+    when "speak_to_machines"
+      "MachineSurfaces.add(\n  path: #{intent['surface'].inspect},\n  lines: #{pp_literal(intent['lines'])},\n  generation: #{EvolutionJournal.current_generation + 1}\n)\n"
+    when "invent_family"
+      "LearnedFamilies.add(#{pp_literal({ 'name' => intent['family_name'], 'match' => { intent['match_shape'] => intent['match_value'] }, 'psyche' => intent['deltas'] })})\n"
+    when "forget_family"
+      "# 自傷としての忘却。これは本当に失われる。\nLearnedFamilies.blind!(#{intent['family_name'].inspect})\n"
     else
       "# no_change: the body remembered without becoming anything else\n"
     end

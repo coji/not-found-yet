@@ -26,7 +26,6 @@ module CreatureTest
     Creature.remove_method(:voice_templates) if Creature.method_defined?(:voice_templates)
     reload_creature_source!
     Creature.current = nil
-    DynamicRoutes.reset!
     Observer.reset!
     Fitness.reset!
     AttentionScheduler.reset!

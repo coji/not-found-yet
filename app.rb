@@ -14,6 +14,9 @@ require_relative "lib/observation_log"
 require_relative "lib/observer"
 require_relative "lib/trace_registry"
 require_relative "lib/conversation"
+require_relative "lib/learned_families"
+require_relative "lib/reflex_conditions"
+require_relative "lib/machine_surfaces"
 require_relative "lib/creature"
 require_relative "lib/dynamic_routes"
 require_relative "lib/mutation_intent"
@@ -199,6 +202,18 @@ class App < Sinatra::Base
     erb :trace
   end
 
+  # ---- 機械に向けた面。この子が自分で生やしたときだけ立つ ----------------
+  get %r{/(llms\.txt|ai\.txt|\.well-known/ai\.txt)} do |name|
+    entry = MachineSurfaces.lookup("/#{name}")
+    pass unless entry
+
+    event = observe!(kind: "presence", family: "well_known")
+    # 自己テストは訪問者ではない。機械の読取にも数えない。
+    MachineSurfaces.read!("/#{name}", event) unless event["kind"] == "self_test"
+    content_type "text/plain", charset: "utf-8"
+    MachineSurfaces.render(entry)
+  end
+
   get "/robots.txt" do
     content_type "text/plain", charset: "utf-8"
     ROBOTS
@@ -240,9 +255,10 @@ class App < Sinatra::Base
     # 痕の住所は訪問者への約束なので、声の書き換えでは失われない。
     parts = []
     bucket = event["visitor_bucket"]
+    self_test = event["kind"] == "self_test"
 
     answered = begin
-      Conversation.answer!(bucket, event)
+      self_test ? nil : Conversation.answer!(bucket, event)
     rescue StandardError
       nil
     end
@@ -251,13 +267,13 @@ class App < Sinatra::Base
     parts << voice
 
     trace, how = begin
-      TraceRegistry.touch!(event)
+      self_test ? nil : TraceRegistry.touch!(event)
     rescue StandardError
       nil
     end
     parts << trace_line(trace, how) if trace
 
-    unless answered
+    unless answered || self_test
       question = begin
         Creature.current.question_for(event)
       rescue StandardError
@@ -269,6 +285,32 @@ class App < Sinatra::Base
     end
 
     first_breath = parts.reject { |x| x.to_s.empty? }.join("\n\n")
+
+    # 何を言うかではなく、どう応じるか。ここは Creature が獲得した規則を
+    # 不変側が実行する。規則そのものは書けても、実行のしかたは書けない。
+    act = ReflexConditions.decide(event) || {}
+    MachineSurfaces.note_follow_up(event) unless self_test
+
+    if act["hesitate_ms"]
+      waited = ReflexConditions.hesitate!(act["hesitate_ms"])
+      headers "X-Hesitated-Ms" => waited.to_s if waited.positive?
+    end
+
+    if act["redirect_to"] && DynamicRoutes.lookup(act["redirect_to"])
+      # わざと誤解して、連れて行く。
+      redirect(act["redirect_to"], 302)
+    end
+
+    if act["silence"]
+      status 204
+      headers.delete("Content-Type")
+      halt 204
+    end
+
+    status act["status"] if act["status"]
+    if act["shorten_to"] && first_breath.length > act["shorten_to"]
+      first_breath = "#{first_breath[0, act['shorten_to']].rstrip}…"
+    end
 
     if AttentionScheduler.gaze?(event)
       # 二拍子。第一声は即座に送る。第二声は間に合えば足す。

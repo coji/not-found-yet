@@ -12,6 +12,10 @@ module RequestAirlock
   MAX_PATH = Config::MAX_PATH_CHARS
   MAX_DISPLAY = Config::MAX_DISPLAY_PATH_CHARS
   CONTROL_CHARS = /[\u0000-\u001F\u007F]/
+  # 組み込みの分類。ここは身体法則で、Creature からは増やせない。
+  # 増やせるのは LearnedFamilies のほうだけ。
+  BUILT_IN_FAMILIES = %w[self well_known secret_probe foreign_body extension_probe
+                         asset opaque question imagined_place unknown acquired].freeze
 
   # path の family 判定。raw path を LLM へ渡さず、この既知 family へ圧縮する。
   FOREIGN_BODY = %r{\A/(wp-admin|wp-login|wp-content|wp-includes|xmlrpc\.php|wordpress|administrator|phpmyadmin|cgi-bin|typo3|drupal)}i
@@ -48,7 +52,8 @@ module RequestAirlock
   def observe(request)
     raw_path = request.path_info.to_s
     normalized = normalize_path(raw_path)
-    family = classify(normalized)
+    # 無害化は身体法則、分類は人格。後者だけを自分の言葉で呼び直せる。
+    family = LearnedFamilies.classify(normalized, classify(normalized))
     display = displayable?(normalized, family) ? normalized : nil
     ua = request.user_agent.to_s
 

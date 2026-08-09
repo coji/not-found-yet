@@ -17,8 +17,14 @@ module Replay
   end
 
   def run!
+    # cold start は空の身体から始まる。可変な registry を全部戻してから、
+    # manifest の順に積み直す。ここを忘れると replay が二重に効く。
     EvolutionJournal.prepare_replay!
+    DynamicRoutes.reset!
     DynamicRoutes.load!
+    ReflexConditions.reset!
+    MachineSurfaces.reset!
+    LearnedFamilies.reset!
     applied = 0
     skipped = 0
     failed = 0
