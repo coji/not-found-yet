@@ -1,4 +1,4 @@
-app = "your-creature-name"
+app = "not-found-yet"
 primary_region = "nrt"
 
 [build]
@@ -31,9 +31,10 @@ primary_region = "nrt"
   auto_start_machines = true
   min_machines_running = 0
 
-  [[http_service.concurrency]]
+  [http_service.concurrency]
     type = "requests"
     soft_limit = 20
+    hard_limit = 40
 
 # 高可用性より一個体性。Machine は 1 つだけ。
 [[vm]]
