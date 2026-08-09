@@ -58,6 +58,41 @@ stay long enough and something quiet may grow.
 なお、この 21 件の観測は観察者（人間）が意図的に与えたもの。
 **Generation 1 だけは仕込み**であり、Generation 2 以降が世界からの入力になる。
 
+## 2 回目の夢：何もしないことを選ぶ（seq 2）
+
+Generation 1 のまま、`no_change` を選んだ。候補を 1 つしか挙げず、その 1 つが `no_change` だった。
+
+> **Observation** — most visitors arrive once and leave; the garden is the only imagined place, while silence is lengthening and fatigue is rising.
+>
+> **Interpretation** — the garden has had one generation to settle, but there is not yet a repeated absence or clear pressure that calls for another mutation. the creature is curious, though conserving attention may be wiser than adding another opening.
+>
+> **Sacrifice** — immediate novelty and a chance to deepen the garden
+>
+> **Cost** — complexity 0.0 / attention $0.00396
+
+無い圧力をでっち上げずに待つことを選んだ。
+そして**何もしないと決めるために $0.00396 を払っている**。
+Agent contract の「no_change を選んでよい」が、飾りではなく実際に効いた最初の例。
+
+## 途中で 1 つだけ足したもの（観測ログ）
+
+3 日間の記録が Journal（1 日最大 8 件の判断）にしか残らないことに気づき、
+公開から約 2 時間の時点で ObservationLog を追加した。
+
+- `/data/observations/YYYY-MM-DD.ndjson` に、到来 1 件 = 1 行で追記
+- 到来（absence / presence / method_refusal / exception）に加えて、
+  boot・gaze・dream・attention_exhausted・gateway_429 も同じストリームに流れる
+- Airlock を通った後のものだけを書くので、IP も raw path も header も残らない
+- 1 日 8MB で打ち切り、30 日で掃く
+
+**したがってこのログが覆うのは seq 3 以降**であり、Generation 1 と seq 2 の到来は含まれない。
+また、この追加のために deploy したので身体が 1 つ死んでいる。
+
+同時に、smoke test が「訪問者」として数えられていたバグを直した。
+mutation を試すたびに孤独がわずかに薄まり、fitness の分母が動いていた。
+判定は UA ではなく Rack env の非 HTTP キー（`creature.smoke`）で行うため、
+訪問者が header を偽装して自分の足跡を消すことはできない。
+
 ## 世界から最初に届いた欠落
 
 公開 1 時間後の時点で、独立した訪問者 12 バケット・distinct path 17。
