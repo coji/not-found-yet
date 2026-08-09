@@ -10,6 +10,7 @@ require_relative "lib/store"
 require_relative "lib/body"
 require_relative "lib/psyche"
 require_relative "lib/request_airlock"
+require_relative "lib/observation_log"
 require_relative "lib/observer"
 require_relative "lib/creature"
 require_relative "lib/dynamic_routes"
@@ -59,6 +60,22 @@ class App < Sinatra::Base
       "#{s / 3600}h #{(s % 3600) / 60}m"
     end
 
+    # 観測の唯一の入口。自己テストは「誰かが来た」に数えない。
+    # 数えてしまうと、mutation を試すたびに孤独が薄まり fitness の分母が動く。
+    def observe!(kind: nil, family: nil)
+      event = RequestAirlock.observe(request)
+      event["kind"] = kind if kind
+      event["family"] = family if family
+
+      if request.env[TrustedMutator::SMOKE_ENV_KEY]
+        event["kind"] = "self_test"
+        event["behavior"] = "self_test"
+        return event
+      end
+
+      Observer.record(event)
+    end
+
     def bar(value)
       filled = (value.to_f * 20).round
       "#{'█' * filled}#{'·' * (20 - filled)}"
@@ -75,8 +92,7 @@ class App < Sinatra::Base
     next if Config::ALLOWED_METHODS.include?(request.request_method)
 
     # request body は読まない。読まないことを、読まれる前に決めておく。
-    event = RequestAirlock.observe(request)
-    Observer.record(event)
+    observe!
     content_type "text/plain", charset: "utf-8"
     halt 405, "I only listen. I do not take things in.\n"
   end
@@ -90,8 +106,7 @@ class App < Sinatra::Base
 
   # ---- Creature が持っている唯一の生得機能 -------------------------------
   get "/" do
-    event = RequestAirlock.observe(request)
-    Observer.record(event)
+    observe!
     @creature = Creature.current
     erb :index
   end
@@ -124,10 +139,7 @@ class App < Sinatra::Base
     entry = DynamicRoutes.lookup("/#{slug}")
     pass unless entry
 
-    event = RequestAirlock.observe(request)
-    event["kind"] = "presence"
-    event["family"] = "acquired"
-    Observer.record(event)
+    event = observe!(kind: "presence", family: "acquired")
 
     content_type entry["content_type"], charset: "utf-8"
     body_text = DynamicRoutes.render(entry, event)
@@ -136,8 +148,7 @@ class App < Sinatra::Base
 
   # ---- 404 / 410 の瞬間応答 ----------------------------------------------
   not_found do
-    event = RequestAirlock.observe(request)
-    Observer.record(event)
+    event = observe!
 
     status DynamicRoutes.previously_existed?(event["path_key"]) ? 410 : 404
     headers "Cache-Control" => "no-store"
@@ -187,6 +198,14 @@ class App < Sinatra::Base
 
     Body.begin_life!
     @replay_report = Replay.run!
+
+    # 身体が入れ替わったこと自体を、次に読む人のために残す。
+    ObservationLog.note("boot",
+                        "previous_body_id" => Body.previous_id,
+                        "inherited" => Body.inherited_alterations?,
+                        "mode" => Body.mode,
+                        "pid" => Process.pid,
+                        "replay" => @replay_report.to_h)
     self
   end
 

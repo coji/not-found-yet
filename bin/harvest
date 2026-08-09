@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# 生きている個体の記憶を、手元へ丸ごと引き上げる。
+#
+# volume は失われうる（仕様上それは許容している）。
+# だが観察の記録まで一緒に失うと、この作品について書けなくなる。
+#
+#   bin/harvest                 -> docs/YYYY-MM-DD/data/ へ
+#   bin/harvest path/to/dir     -> 指定先へ
+#
+# 読み出すだけ。個体には触れない。
+
+set -euo pipefail
+
+APP="${FLY_APP:-not-found-yet}"
+DEST="${1:-docs/$(TZ=Asia/Tokyo date +%Y-%m-%d)/data}"
+
+echo "app:  $APP"
+echo "dest: $DEST"
+
+echo "--- 記憶の一覧を取る"
+FILES=$(flyctl ssh console --app "$APP" -C "find /data -type f -not -path '*/locks/*'" 2>/dev/null | tr -d '\r' | grep '^/data/' || true)
+
+if [ -z "$FILES" ]; then
+  echo "ファイルが見つかりません。Machine が suspend 中なら一度 curl で起こしてください:" >&2
+  echo "  curl -s -o /dev/null https://$APP.fly.dev/status" >&2
+  exit 1
+fi
+
+COUNT=0
+while IFS= read -r remote; do
+  [ -z "$remote" ] && continue
+  local_path="$DEST/${remote#/data/}"
+  mkdir -p "$(dirname "$local_path")"
+  if flyctl ssh sftp get --app "$APP" "$remote" "$local_path" >/dev/null 2>&1; then
+    COUNT=$((COUNT + 1))
+    printf '  %s (%s)\n' "${remote#/data/}" "$(wc -c <"$local_path" | tr -d ' ')"
+  else
+    echo "  取得失敗: $remote" >&2
+  fi
+done <<<"$FILES"
+
+echo "--- $COUNT 件を $DEST へ"
+
+# 観測ログの概観だけ出しておく。中身の解釈は人がやる。
+if command -v jq >/dev/null 2>&1 && [ -d "$DEST/observations" ]; then
+  echo "--- 観測の内訳（kind 別）"
+  cat "$DEST"/observations/*.ndjson 2>/dev/null | jq -r '.kind' | sort | uniq -c | sort -rn
+fi

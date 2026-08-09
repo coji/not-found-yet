@@ -42,6 +42,7 @@ module Observer
       @last_request_at = Clock.now
     end
     Psyche.observe!(event)
+    ObservationLog.record(event)
     event
   end
 
@@ -53,6 +54,7 @@ module Observer
       @counters["exception"] += 1
     end
     Psyche.observe!(event)
+    ObservationLog.note("exception", event)
     event
   end
 

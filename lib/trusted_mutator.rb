@@ -8,6 +8,7 @@ require "rack/mock"
 # 展示用の Ruby source は生成するが、それは実行正本ではない。
 module TrustedMutator
   COMPILER_VERSION = "1"
+  SMOKE_ENV_KEY = "creature.smoke"
 
   @mutex = Mutex.new
   @smoke_app = nil
@@ -212,7 +213,10 @@ module TrustedMutator
 
     mock = Rack::MockRequest.new(app)
     checks.each do |path, expected|
-      res = mock.get(path, "HTTP_USER_AGENT" => "creature-smoke/1", "REMOTE_ADDR" => "127.0.0.1")
+      # creature.smoke は HTTP_ 接頭辞を持たないので、外から header で偽装できない。
+      # 自己テストを「訪問」として数えないための印。
+      res = mock.get(path, SMOKE_ENV_KEY => true,
+                           "HTTP_USER_AGENT" => "creature-smoke/1", "REMOTE_ADDR" => "127.0.0.1")
       allowed = Array(expected)
       unless allowed.include?(res.status)
         return { "passed" => false, "reason" => "#{path} returned #{res.status}, expected #{allowed.join('/')}" }

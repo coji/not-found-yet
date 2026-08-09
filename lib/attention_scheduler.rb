@@ -80,12 +80,16 @@ module AttentionScheduler
     Store.try_file_lock("llm.lock") do
       begin
         text, result = EvolutionAgent.gaze(event: event)
-        BudgetGuard.settle!(reservation, usage: result.usage)
+        charged = BudgetGuard.settle!(reservation, usage: result.usage)
         @mutex.synchronize { @last_gaze_at = Clock.now }
+        ObservationLog.note("gaze", "path" => event["safe_display_path"], "family" => event["family"],
+                                    "score" => score(event).round(3), "usd" => charged,
+                                    "spoke" => !text.nil?)
         text
       rescue Providers::CloudflareAIGateway::Throttled
         BudgetGuard.mark_gateway_429!
         BudgetGuard.settle!(reservation, failed: true)
+        ObservationLog.note("gateway_429", "purpose" => "gaze")
         nil
       rescue Providers::CloudflareAIGateway::Unavailable
         # 呼んでいないので、注意力は減らさない。
@@ -170,12 +174,14 @@ module AttentionScheduler
       rescue Providers::CloudflareAIGateway::Throttled
         BudgetGuard.mark_gateway_429!
         BudgetGuard.settle!(reservation, failed: true)
+        ObservationLog.note("gateway_429", "purpose" => "dream")
         return nil
       rescue Providers::CloudflareAIGateway::Unavailable
         BudgetGuard.release!(reservation)
         return nil
       rescue StandardError => e
         BudgetGuard.settle!(reservation, failed: true)
+        ObservationLog.note("dream_failed", "error" => e.class.name)
         Observer.record_exception(e, "AttentionScheduler#dream_call")
         return nil
       end
@@ -193,7 +199,10 @@ module AttentionScheduler
       "complexity" => result.intent.is_a?(Hash) ? MutationIntent.complexity_cost(result.intent) : 0.0,
       "attention_usd" => spent_usd.round(6)
     }
-    EvolutionJournal.append(decision: decision, result: result, cost: cost, source: :dream)
+    entry = EvolutionJournal.append(decision: decision, result: result, cost: cost, source: :dream)
+    ObservationLog.note("dream", "seq" => entry["seq"], "status" => result.status,
+                                 "intent" => entry["intent_description"], "reason" => result.reason,
+                                 "desire" => decision["dominant_desire"], "cost" => cost)
     result
   end
 

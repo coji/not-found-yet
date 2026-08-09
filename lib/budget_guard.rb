@@ -150,8 +150,10 @@ module BudgetGuard
     update { |state| state["gateway_429_at"] = Clock.iso }
   end
 
+  # 考えなかったことも記録に値する。
   def record_exhausted!(reason)
     update { |state| state["exhausted_events"] = state["exhausted_events"].to_i + 1 }
+    ObservationLog.note("attention_exhausted", "reason" => reason.to_s, "remaining_usd" => remaining_usd)
     reason
   end
 
