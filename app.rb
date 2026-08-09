@@ -17,6 +17,7 @@ require_relative "lib/conversation"
 require_relative "lib/learned_families"
 require_relative "lib/reflex_conditions"
 require_relative "lib/machine_surfaces"
+require_relative "lib/trusted_renderer"
 require_relative "lib/creature"
 require_relative "lib/dynamic_routes"
 require_relative "lib/mutation_intent"
@@ -229,9 +230,15 @@ class App < Sinatra::Base
 
     event = observe!(kind: "presence", family: "acquired")
 
-    content_type entry["content_type"], charset: "utf-8"
-    body_text = DynamicRoutes.render(entry, event)
-    entry["content_type"] == "text/html" ? "<pre>#{h(body_text)}</pre>" : body_text
+    # 器官は保存された文字列ではなく、いまの身体から描き直される。
+    if entry["form"] && entry["form"] != "still"
+      content_type "text/html", charset: "utf-8"
+      TrustedRenderer.render(entry, event)
+    else
+      content_type entry["content_type"], charset: "utf-8"
+      body_text = DynamicRoutes.render(entry, event)
+      entry["content_type"] == "text/html" ? "<pre>#{h(body_text)}</pre>" : body_text
+    end
   end
 
   # ---- 404 / 410 の瞬間応答 ----------------------------------------------
@@ -312,8 +319,30 @@ class App < Sinatra::Base
       first_breath = "#{first_breath[0, act['shorten_to']].rstrip}…"
     end
 
-    if AttentionScheduler.gaze?(event)
-      # 二拍子。第一声は即座に送る。第二声は間に合えば足す。
+    # 相手によって皮を替える。plain text が正本で、HTML はその上に着るもの。
+    # curl とクローラーには、いままでと 1 バイトも変わらないものが届く。
+    wants_html = !self_test && request.accept.any? { |a| a.to_s.include?("text/html") }
+    gazing = AttentionScheduler.gaze?(event)
+
+    if wants_html
+      content_type "text/html", charset: "utf-8"
+      head, tail = TrustedRenderer.absence_page(first_breath, event)
+      if gazing
+        # HTML でも二拍子は保つ。頭を先に流し、間に合えば第二声を書き足す。
+        stream do |out|
+          out << head
+          second = begin
+            AttentionScheduler.gaze_for(event)
+          rescue StandardError
+            nil
+          end
+          out << TrustedRenderer.second_breath_html(second) if second
+          out << tail
+        end
+      else
+        head + tail
+      end
+    elsif gazing
       stream do |out|
         out << first_breath
         second = begin

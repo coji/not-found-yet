@@ -41,14 +41,24 @@ module DynamicRoutes
 
   def reserved?(path) = RESERVED.include?(path)
 
-  def add(path:, title:, lines:, content_type:, generation:)
+  # 器官は保存された文字列ではなく、構成である。
+  # lines は「言うこと」、form/source/mood/motion は「どう見せるか」。
+  def add(path:, title:, lines:, content_type:, generation:,
+          form: "still", source: nil, mood: "quiet", motion: "still", faces: nil)
     entry = {
       "path" => path,
       "path_key" => RequestAirlock.path_key(path),
       "title" => title.to_s[0, 60],
       "lines" => Array(lines).first(MAX_LINES).map { |l| l.to_s[0, MAX_LINE_CHARS] },
       "content_type" => content_type,
+      "form" => form,
+      "source" => source,
+      "mood" => mood,
+      "motion" => motion,
+      "faces" => faces,
       "generation" => generation,
+      "reshaped_at_generation" => nil,
+      "reshapes" => 0,
       "active" => true,
       "created_at" => Clock.iso,
       "retired_at" => nil,
@@ -56,6 +66,19 @@ module DynamicRoutes
     }
     @mutex.synchronize { @routes[path] = entry }
     entry
+  end
+
+  # 既にある器官を作り替える。増やすだけでは、生き物は年表にしかならない。
+  def reshape(path, changes)
+    @mutex.synchronize do
+      entry = @routes[path]
+      next nil unless entry
+
+      changes.each { |k, v| entry[k] = v unless v.nil? }
+      entry["reshapes"] = entry["reshapes"].to_i + 1
+      entry["reshaped_at"] = Clock.iso
+      entry
+    end
   end
 
   # 失うことも変化である。gone なら 410、そうでなければただの 404 に戻る。

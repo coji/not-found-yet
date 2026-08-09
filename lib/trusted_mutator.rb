@@ -110,6 +110,8 @@ module TrustedMutator
     when "rewrite_absence_voice" then apply_voice(intent, generation)
     when "wrap_method" then apply_wrap(intent, generation)
     when "add_route" then apply_add_route(intent, generation)
+    when "add_organ" then apply_add_organ(intent, generation)
+    when "reshape_organ" then apply_reshape_organ(intent, generation)
     when "retire_route" then apply_retire_route(intent, generation)
     when "adjust_desire_weights" then apply_desire(intent, generation)
     when "add_reflex_condition" then apply_reflex(intent, generation)
@@ -185,6 +187,31 @@ module TrustedMutator
     )
   end
 
+  def apply_add_organ(intent, generation)
+    snapshot = DynamicRoutes.snapshot
+    RollbackRegistry.push(generation) { DynamicRoutes.restore(snapshot) }
+    entry = DynamicRoutes.add(
+      path: intent["path"], title: intent["title"], lines: intent["lines"],
+      content_type: "text/html", generation: generation,
+      form: intent["form"], source: intent["source"],
+      mood: intent["mood"], motion: intent["motion"], faces: intent["faces"]
+    )
+    # 名指した人の痕に、由来を書き戻す。
+    TraceRegistry.became_organ!(intent["path"], intent["path"])
+    entry
+  end
+
+  def apply_reshape_organ(intent, generation)
+    snapshot = DynamicRoutes.snapshot
+    RollbackRegistry.push(generation) { DynamicRoutes.restore(snapshot) }
+    DynamicRoutes.reshape(intent["path"], {
+                            "form" => intent["form"], "source" => intent["source"],
+                            "mood" => intent["mood"], "motion" => intent["motion"],
+                            "lines" => intent["lines"], "faces" => intent["faces"],
+                            "reshaped_at_generation" => generation
+                          })
+  end
+
   def apply_retire_route(intent, generation)
     snapshot = DynamicRoutes.snapshot
     RollbackRegistry.push(generation) { DynamicRoutes.restore(snapshot) }
@@ -239,7 +266,7 @@ module TrustedMutator
     return { "passed" => true, "skipped" => "no app" } if app.nil?
 
     checks = [["/", 200], ["/status", 200], ["/mutations", 200], ["/__smoke__#{rand(1 << 20)}", [404, 410]]]
-    checks << [intent["path"], 200] if intent["type"] == "add_route"
+    checks << [intent["path"], 200] if %w[add_route add_organ reshape_organ].include?(intent["type"])
     checks << [intent["surface"], 200] if intent["type"] == "speak_to_machines"
 
     mock = Rack::MockRequest.new(app)
@@ -300,6 +327,17 @@ module TrustedMutator
           lines: #{pp_literal(intent['lines'])},
           content_type: #{intent['content_type'].inspect},
           generation: #{EvolutionJournal.current_generation + 1}
+        )
+      RUBY
+    when "add_organ", "reshape_organ"
+      <<~RUBY
+        # #{intent['type']} — Creature が書けるのは構成だけ。markup は TrustedRenderer が書く。
+        DynamicRoutes.#{intent['type'] == 'add_organ' ? 'add' : 'reshape'}(
+          path: #{intent['path'].inspect},
+          form: #{intent['form'].inspect}, source: #{intent['source'].inspect},
+          mood: #{intent['mood'].inspect}, motion: #{intent['motion'].inspect},
+          lines: #{pp_literal(intent['lines'])},
+          faces: #{pp_literal(intent['faces'])}
         )
       RUBY
     when "retire_route"

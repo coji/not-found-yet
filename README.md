@@ -88,11 +88,21 @@ LLM 出力を `eval` しない。Trusted Mutator が Intent を Ruby closure へ
 | type | 何が変わるか |
 |---|---|
 | `rewrite_absence_voice` | 404 の声。family ごとの template と最大長 |
-| `add_route` | 安全な path への新しい GET 機能 |
+| `add_organ` | いまの身体を映す窓を獲得する（形・源・気分・動き・相手ごとの顔） |
+| `reshape_organ` | **獲得済みの器官を作り替える。** 増えるだけの身体は年表にしかならない |
 | `retire_route` | 機能を失う。必要なら 410 Gone |
+| `add_reflex_condition` | ふるまい。ためらう・黙る・別の status・読み替えて連れて行く |
+| `speak_to_machines` | 機械だけが読む面を生やす。話しかけられるが、命令はできない |
+| `invent_family` | 自分の分類を作る。曖昧だったものにだけ効く |
+| `forget_family` | 見えなくする。自傷としての忘却 |
 | `wrap_method` | 列挙済み transform を既存 method の前後に |
 | `adjust_desire_weights` | 欲求の重みを ±0.15 まで |
+| `add_route` | （legacy）静的な text/plain。本番に生えている個体のため残してある |
 | `no_change` | 観測だけを記憶し、身体は変えない |
+
+器官の中身は保存された markup ではなく**構成**（`form` / `source` / `mood` / `motion`）で、
+描くのは不変側の `TrustedRenderer`。Creature は HTML も CSS も SVG も書けないし、
+script は誰にも生成させない。同じ器官でも、いつ見るか・誰が見るかで違うものが出る。
 
 任意定数参照、`File` / `IO` / `ENV`、`system`、`require`、socket、thread 生成は
 **この言語では書けない**。書けないものは起こらない。
@@ -109,6 +119,8 @@ LLM 出力を `eval` しない。Trusted Mutator が Intent を Ruby closure へ
   mutations/000001.json      # replay の正本。hash chain で繋ぐ
   exhibits/000001.rb         # 展示専用。決して再生しない
   tombstones/routes.json     # 失った場所（410 の根拠）
+  traces/000001.json         # 痕。訪問者が持ち帰れる住所
+  observations/2026-08-09.ndjson  # 到来そのものの記録（1 行 1 件）
   locks/                     # evolution / llm / budget の flock
 ```
 
@@ -118,6 +130,30 @@ hash 不一致・欠番・破損があれば、その地点以降を適用せず
 `body_id` は cold start ごとに新しい UUID。PID だけでは再起動を識別しない。
 Fly の suspend / resume では memory snapshot が復元されるので、同じ身体の睡眠として扱う。
 新しい身体は「あの身体の変化だけを受け継いだ。時間は受け継いでいない。」と名乗る。
+
+---
+
+## 訪問者に残るもの
+
+まだ無い場所を**最初に名指した人**には、住所が渡る。
+
+```
+/garden は、私にはない。
+それを私に求めたのは、あなたが最初だ。
+
+この名指しに印をつけた。/trace/1847
+```
+
+`/trace/1847` は持ち帰れる。誰が名付けたかは記録しない。記録するのは出来事のほうで、
+それが自分だと知っているのは URL を持っている本人だけ。
+
+痕は時間とともに薄れる。3 週間だれも戻らなければ言葉を失うが、`path_key` は残るので、
+もう一度その名前で呼ばれれば思い出す。**忘れてはいるが、聞けば分かる。**
+見に来ることでも、呼び直すことでも、鮮明さは戻る。
+この作品は有限の注意力の話で、訪問者にも同じ経済が渡してある。
+
+404 は問いで終わることがある。**次にアドレスバーへ打たれた名前が、答えになる。**
+フォームは作らない。入力面はアドレスバーだけ、という前提を最後まで押し切っている。
 
 ---
 

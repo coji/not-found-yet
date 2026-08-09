@@ -7,6 +7,8 @@ module MutationIntent
   TYPES = %w[
     rewrite_absence_voice
     add_route
+    add_organ
+    reshape_organ
     retire_route
     wrap_method
     adjust_desire_weights
@@ -164,6 +166,75 @@ module MutationIntent
     [true, { "type" => "adjust_desire_weights", "deltas" => normalized }]
   end
 
+  # 器官。静的なページではなく、その瞬間の身体を映す窓。
+  def validate_add_organ(intent)
+    path = intent["path"]
+    return [false, "invalid or reserved path"] unless DynamicRoutes.valid_path?(path)
+    return [false, "organ already exists"] if DynamicRoutes.lookup(path)
+    return [false, "too many organs"] if DynamicRoutes.count >= Config.max_dynamic_routes
+
+    ok, shape = organ_shape(intent)
+    return [false, shape] unless ok
+
+    title = intent["title"].to_s
+    return [false, "unsafe title"] unless title.match?(SAFE_TEXT)
+
+    [true, { "type" => "add_organ", "path" => path, "title" => title }.merge(shape)]
+  end
+
+  # 獲得済みの器官も変わる。増やすことしかできない身体は、ただ長くなるだけ。
+  def validate_reshape_organ(intent)
+    path = intent["path"]
+    entry = DynamicRoutes.lookup(path)
+    return [false, "no such organ"] unless entry
+
+    ok, shape = organ_shape(intent, fallback: entry)
+    return [false, shape] unless ok
+
+    [true, { "type" => "reshape_organ", "path" => path }.merge(shape)]
+  end
+
+  def organ_shape(intent, fallback: nil)
+    form = intent["form"] || fallback&.dig("form") || "still"
+    return [false, "unknown form"] unless TrustedRenderer::FORMS.include?(form)
+
+    source = intent["source"] || fallback&.dig("source")
+    return [false, "unknown source"] if source && !TrustedRenderer::SOURCES.include?(source)
+
+    mood = intent["mood"] || fallback&.dig("mood") || "quiet"
+    return [false, "unknown mood"] unless TrustedRenderer::MOODS.include?(mood)
+
+    motion = intent["motion"] || fallback&.dig("motion") || "still"
+    return [false, "unknown motion"] unless TrustedRenderer::MOTIONS.include?(motion)
+
+    lines = intent["lines"] || fallback&.dig("lines")
+    return [false, "lines must be a non-empty array"] unless lines.is_a?(Array) && !lines.empty?
+    return [false, "too many lines"] if lines.length > MAX_LINES
+
+    lines.each { |l| return [false, "unsafe line"] unless l.is_a?(String) && l.match?(SAFE_TEXT) }
+
+    faces = intent["faces"] || fallback&.dig("faces")
+    if faces
+      return [false, "faces must be an array"] unless faces.is_a?(Array)
+      return [false, "too many faces"] if faces.length > TrustedRenderer::AUDIENCES.length
+
+      faces = faces.map do |f|
+        return [false, "face must be an object"] unless f.is_a?(Hash)
+        return [false, "unknown audience"] unless TrustedRenderer::AUDIENCES.include?(f["audience"])
+
+        fl = f["lines"]
+        return [false, "face lines must be a non-empty array"] unless fl.is_a?(Array) && !fl.empty?
+        return [false, "too many face lines"] if fl.length > MAX_LINES
+
+        fl.each { |l| return [false, "unsafe face line"] unless l.is_a?(String) && l.match?(SAFE_TEXT) }
+        { "audience" => f["audience"], "lines" => fl }
+      end
+    end
+
+    [true, { "form" => form, "source" => source, "mood" => mood,
+             "motion" => motion, "lines" => lines, "faces" => faces }]
+  end
+
   # ふるまいの規則。何を言うかではなく、どう応じるか。
   #
   # 正規化しても key の名前を変えない。replay は同じ validator を通るので、
@@ -305,6 +376,8 @@ module MutationIntent
   def complexity_cost(intent)
     case intent["type"]
     when "add_route" then 0.10 + 0.01 * intent["lines"].length
+    when "add_organ" then 0.12 + 0.01 * intent["lines"].length + (intent["faces"] ? 0.03 * intent["faces"].length : 0)
+    when "reshape_organ" then 0.03
     when "rewrite_absence_voice" then 0.02 * intent["templates"].length
     when "wrap_method" then 0.03 * intent["transforms"].length
     when "retire_route" then -0.08
@@ -320,6 +393,8 @@ module MutationIntent
   def describe(intent)
     case intent["type"]
     when "add_route" then "add_route #{intent['path']}"
+    when "add_organ" then "add_organ #{intent['path']} (#{intent['form']}/#{intent['mood']})"
+    when "reshape_organ" then "reshape_organ #{intent['path']} → #{intent['form']}/#{intent['mood']}/#{intent['motion']}"
     when "retire_route" then "retire_route #{intent['path']}"
     when "wrap_method" then "wrap_method #{intent['method']} (#{intent['transforms'].map { |t| t['op'] }.join(', ')})"
     when "rewrite_absence_voice" then "rewrite_absence_voice (#{intent['templates'].length} templates)"
@@ -368,7 +443,8 @@ module MutationIntent
       "type" => "object",
       "additionalProperties" => false,
       "required" => %w[type path title lines content_type templates max_length method transforms deltas gone
-                       rule surface family_name match_shape match_value],
+                       rule surface family_name match_shape match_value
+                       form source mood motion faces],
       "properties" => {
         "type" => { "type" => "string", "enum" => TYPES },
         "path" => nullable({ "type" => "string" }),
@@ -450,7 +526,25 @@ module MutationIntent
         "surface" => nullable({ "type" => "string", "enum" => MachineSurfaces::ALLOWED }),
         "family_name" => nullable({ "type" => "string" }),
         "match_shape" => nullable({ "type" => "string", "enum" => LearnedFamilies::SHAPES }),
-        "match_value" => nullable({ "type" => "string" })
+        "match_value" => nullable({ "type" => "string" }),
+
+        # 器官の構成。markup は書けない。形と源と気分と動きを選ぶだけ。
+        "form" => nullable({ "type" => "string", "enum" => TrustedRenderer::FORMS }),
+        "source" => nullable({ "type" => "string", "enum" => TrustedRenderer::SOURCES }),
+        "mood" => nullable({ "type" => "string", "enum" => TrustedRenderer::MOODS }),
+        "motion" => nullable({ "type" => "string", "enum" => TrustedRenderer::MOTIONS }),
+        "faces" => nullable({
+          "type" => "array",
+          "items" => {
+            "type" => "object",
+            "additionalProperties" => false,
+            "required" => %w[audience lines],
+            "properties" => {
+              "audience" => { "type" => "string", "enum" => TrustedRenderer::AUDIENCES },
+              "lines" => { "type" => "array", "items" => { "type" => "string" } }
+            }
+          }
+        })
       }
     }
   end

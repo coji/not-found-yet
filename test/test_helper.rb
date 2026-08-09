@@ -26,9 +26,15 @@ module CreatureTest
     Creature.remove_method(:voice_templates) if Creature.method_defined?(:voice_templates)
     reload_creature_source!
     Creature.current = nil
+    # 本番の cold start は state.json から読み直す。ここも同じにしないと、
+    # 前のテストの疲労や恐れがメモリに残って別のテストを揺らす。
+    Psyche.load!
     Observer.reset!
     Fitness.reset!
     AttentionScheduler.reset!
+    # 新しいプロセスでは、メモリ上の会話も痕の索引も空から始まる。
+    Conversation.reset!
+    TraceRegistry.reset!
     Body.begin_life!
     Replay.run!
   end
