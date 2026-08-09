@@ -21,15 +21,11 @@
     <p><%= h(e['interpretation'] || '—') %></p>
 
     <h3>Dominant desire</h3>
-    <p><%= h(e['dominant_desire']) %>
-      <% if e['psyche'] %>
-        <span class="muted">
-          <% e['psyche'].sort_by { |_, v| -v.to_f }.first(3).each do |k, v| %>
-            <%= h("#{k} #{format('%.2f', v)}") %>
-          <% end %>
-        </span>
-      <% end %>
-    </p>
+    <p><%= h(e['dominant_desire']) %><%
+      if e['psyche']
+        top = e['psyche'].sort_by { |_, v| -v.to_f }.first(3)
+                         .map { |k, v| "#{k} #{format('%.2f', v)}" }.join(" · ")
+    %> <span class="muted">— <%= h(top) %></span><% end %></p>
 
     <% if e['candidates'] %>
       <h3>Candidates</h3>

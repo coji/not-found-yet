@@ -76,10 +76,6 @@ class App < Sinatra::Base
       Observer.record(event)
     end
 
-    def bar(value)
-      filled = (value.to_f * 20).round
-      "#{'█' * filled}#{'·' * (20 - filled)}"
-    end
   end
 
   # 骨格。ここは Creature からは触れない。

@@ -23,7 +23,7 @@
   <% lost = DynamicRoutes.lost %>
   <% unless lost.empty? %>
     <p class="lost">what I lost:
-      <% lost.each_with_index do |r, i| %><%= ", " if i.positive? %><span class="muted"><%= h(r['path']) %></span><% end %>
+      <% lost.each_with_index do |r, i| %><%= ", " if i.positive? %><%= h(r['path']) %><% end %>
     </p>
   <% end %>
 </section>
@@ -32,9 +32,11 @@
   <h2>how I am</h2>
   <ul class="psyche">
     <% Psyche.state.each do |name, value| %>
-      <li><span class="key"><%= h(name) %></span>
-        <span class="meter"><%= h(bar(value)) %></span>
-        <span class="num"><%= h(format('%.2f', value)) %></span></li>
+      <li>
+        <span class="key"><%= h(name) %></span>
+        <span class="meter"><span style="width: <%= h((value.to_f * 100).round) %>%"></span></span>
+        <span class="num"><%= h(format('%.2f', value)) %></span>
+      </li>
     <% end %>
   </ul>
 </section>
