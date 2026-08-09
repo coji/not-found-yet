@@ -3,6 +3,7 @@
 require "sinatra/base"
 require "erb"
 require "rack/utils"
+require "uri"
 
 require_relative "lib/config"
 require_relative "lib/clock"
@@ -121,6 +122,40 @@ class App < Sinatra::Base
       "「#{said}」と言ったね。\n#{about} について、それを憶えておく。"
     end
 
+    # 外へは出さない。相対 path だけを通す。
+    # //evil.com や https:// を素通しすると、ただの open redirect になる。
+    def navigable_path(raw)
+      s = raw.to_s.gsub(RequestAirlock::CONTROL_CHARS, "").strip
+      return nil if s.empty?
+      # scheme を持つものは、この生き物の中の場所ではない。
+      return nil if s.match?(%r{\A[a-z][a-z0-9+.\-]*:}i)
+
+      # backslash を slash に倒してから連続 slash を畳む。
+      # これで //example.com も /\example.com も、ただの相対 path になる。
+      s = s.tr("\\", "/")
+      s = "/#{s}" unless s.start_with?("/")
+      s = s.gsub(%r{/+}, "/")[0, Config::MAX_PATH_CHARS]
+      s = s.sub(%r{(.)/\z}, '\1')
+      return nil if s == "/" || s.empty?
+
+      s
+    end
+
+    # 打つ代わりの入力欄。既定は「いまいる場所」。
+    def wander_form(current = nil)
+      value = h(current.to_s)
+      <<~HTML
+        <form class="wander" method="get" action="/go">
+          <label for="to">まだ無い場所の名前を、ひとつ</label>
+          <div class="wander-row">
+            <input id="to" name="to" type="text" value="#{value}" maxlength="80"
+                   spellcheck="false" autocomplete="off" placeholder="/庭">
+            <button type="submit">求める</button>
+          </div>
+        </form>
+      HTML
+    end
+
     def duration(seconds)
       s = seconds.to_i
       return "#{s}s" if s < 60
@@ -189,6 +224,17 @@ class App < Sinatra::Base
     @selected = params["seq"] ? EvolutionJournal.find(params["seq"].to_i) : nil
     @exhibit = @selected ? EvolutionJournal.exhibit(@selected["seq"]) : nil
     erb :mutations
+  end
+
+  # ---- アドレスバーの代わり ----------------------------------------------
+  #
+  # フォームで命令はしない。ここがやるのは 302 を返すことだけで、
+  # 生き物が受け取るのは、アドレスバーに打たれたのと同じ GET になる。
+  # 入力面は増えていない。打つ手間が減っているだけ。
+  get "/go" do
+    target = navigable_path(params["to"]) || "/"
+    # Location は ASCII でなければならない。日本語の名前はここで percent encode する。
+    redirect(URI::DEFAULT_PARSER.escape(target), 302)
   end
 
   # ---- 痕。訪問者が持ち帰れる住所 ----------------------------------------

@@ -46,6 +46,21 @@ module TrustedRenderer
     face ? face["lines"] : entry["lines"]
   end
 
+  # 打つ代わりの入力欄。器官の上でも、そこから次へ回遊できる。
+  # これは 302 を返すだけの form なので、生き物が受け取る request は変わらない。
+  def wander(current)
+    <<~HTML
+      <form class="wander" method="get" action="/go">
+        <label for="to">つぎに求める場所</label>
+        <div class="wander-row">
+          <input id="to" name="to" type="text" value="#{esc(current)}" maxlength="80"
+                 spellcheck="false" autocomplete="off" placeholder="/庭">
+          <button type="submit">求める</button>
+        </div>
+      </form>
+    HTML
+  end
+
   def render(entry, event)
     lines = Array(lines_for(entry, event)).map { |l| VoiceTemplate.fill(l, VoiceTemplate.context(event)) }
     form = FORMS.include?(entry["form"]) ? entry["form"] : "still"
@@ -65,6 +80,7 @@ module TrustedRenderer
       <body class="organ">
         <figure class="organ-view">#{svg(form, mood, event)}</figure>
         <div class="organ-said">#{lines.map { |l| "<p>#{esc(l)}</p>" }.join}</div>
+        #{wander(entry['path'])}
         <footer class="organ-foot">
           <span>#{esc(entry['path'])}</span>
           <span>第 #{Body.generation} 世代の身体が、いま描いた</span>
@@ -95,6 +111,7 @@ module TrustedRenderer
     HTML
     tail = <<~HTML
         </div>
+        #{wander(event['safe_display_path'])}
         <footer class="organ-foot">
           <span>#{esc(event['safe_display_path'] || '読めない名前')}</span>
           <span>第 #{Body.generation} 世代</span>
@@ -146,6 +163,17 @@ module TrustedRenderer
         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;letter-spacing:.1em}
       .organ-foot a{color:#{dim};text-decoration:none}
       .organ-foot a:hover{color:#{fg}}
+      .wander{align-self:center;width:100%;max-width:44rem}
+      .wander label{display:block;color:#626a68;font-family:ui-monospace,Menlo,monospace;
+        font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.6rem}
+      .wander-row{display:flex;gap:.6rem;flex-wrap:wrap}
+      .wander input{flex:1 1 14rem;min-width:0;padding:.75rem .95rem;border-radius:12px;
+        border:1px solid #28302f;background:#0d1011;color:#f0efe9;
+        font-family:ui-monospace,Menlo,monospace;font-size:.95rem}
+      .wander input:focus{outline:none;border-color:#{fg}}
+      .wander button{padding:.75rem 1.3rem;border-radius:12px;border:1px solid #{fg};
+        background:#{fg};color:#10130d;font-weight:800;cursor:pointer;font-size:.9rem}
+      .wander button:hover{filter:brightness(1.08)}
       #{anim}
       @media (prefers-reduced-motion: reduce){.mark{animation:none}}
     CSS
