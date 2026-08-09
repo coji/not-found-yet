@@ -85,6 +85,16 @@ footer {
   border-top: 1px solid var(--line); padding: 1.5rem clamp(1rem, 5vw, 4rem);
   color: var(--muted); font-size: 11px; letter-spacing: 0.1em;
 }
+
+/* 作品の外側からの注記。本文より一段引いて置く。 */
+footer.colophon {
+  justify-content: flex-start; gap: 1.5rem; align-items: baseline;
+  border-top: 1px solid var(--line); padding: 1.75rem 0 0;
+  font-size: 11px; letter-spacing: 0.12em;
+}
+footer.colophon a { color: var(--muted); border-bottom-color: transparent; }
+footer.colophon a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+footer.colophon a::after { content: " ↗"; opacity: 0.5; }
 .mode.alive { color: var(--ok); }
 .mode.fossil { color: var(--warn); }
 

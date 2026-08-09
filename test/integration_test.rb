@@ -22,6 +22,14 @@ class IntegrationTest < Minitest::Test
     assert_includes last_response.body, "I don&#39;t know what I am yet"
   end
 
+  # 運用者が固定している注記。世代が変わっても、mutation でも消えない。
+  def test_front_page_credits_the_proposal_and_the_source
+    get "/"
+    assert_includes last_response.body, "https://artifactshare.com/a/moyeumho42"
+    assert_includes last_response.body, "https://github.com/coji/not-found-yet"
+    assert_includes last_response.body, 'rel="noopener noreferrer"'
+  end
+
   def test_observation_windows_are_fixed_and_always_present
     %w[/status /mutations /robots.txt].each do |path|
       get path
