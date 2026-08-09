@@ -27,8 +27,9 @@ require_relative "lib/replay"
 # ひとつの身体。ひとつの URL。
 class App < Sinatra::Base
   ROBOTS = <<~TXT
-    # This is a creature, not a site. It has one url and a few organs.
-    # Crawling is part of its ecology. Please be gentle with the absences.
+    # これはサイトではなく、一匹の生き物です。
+    # ひとつの URL と、訪問者がまちがえて与えた少しの器官しか持っていません。
+    # 巡回はこの生き物の生態の一部です。欠落には、やさしく触れてください。
     User-agent: *
     Allow: /
     Crawl-delay: 5
@@ -53,12 +54,44 @@ class App < Sinatra::Base
     def h(text) = Rack::Utils.escape_html(text.to_s)
 
     # 企画書と同じ見出し。まだ分かっていない部分だけを輪郭で残す。
-    # 文面は Creature が持っているので、"I am" が現れたときにだけ効く。
-    def headline(text)
-      text.to_s.split(/(\bI\s+am\b)/i).map do |part|
-        part.match?(/\AI\s+am\z/i) ? %(<span class="ghost">#{h(part)}</span>) : h(part)
+    # 文面は Creature が持っているので、その語が現れたときにだけ効く。
+    HOLLOW = /(自分が何なのか|\bI\s+am\b)/i
+    JAPANESE_TEXT = /[\p{Hiragana}\p{Katakana}\p{Han}]/
+
+    def headline_tag(text)
+      body = text.to_s.split(HOLLOW).map do |part|
+        part.match?(/\A(自分が何なのか|I\s+am)\z/i) ? %(<span class="ghost">#{h(part)}</span>) : h(part)
       end.join
+      # 日本語は欧文ほど詰められない。同じ tracking を当てると潰れる。
+      %(<h1 class="#{text.to_s.match?(JAPANESE_TEXT) ? 'jp' : 'latin'}">#{body}</h1>)
     end
+
+    # 内部の識別子は英語のまま（schema と journal の正本なので動かせない）。
+    # 表示のときだけ日本語を当てる。知らない語はそのまま出す。
+    LABELS = {
+      "curiosity" => "好奇", "fear" => "恐れ", "loneliness" => "孤独",
+      "vanity" => "虚栄", "fatigue" => "疲れ", "self_preservation" => "自己保存",
+
+      "imagined_place" => "想像された場所", "question" => "問いかけ",
+      "foreign_body" => "別種の身体", "secret_probe" => "内側への要求",
+      "extension_probe" => "拡張子の探索", "asset" => "素材",
+      "opaque" => "読めない名前", "well_known" => "規約の探索",
+      "unknown" => "未分類", "self" => "自分", "acquired" => "獲得した機能",
+
+      "first_touch" => "はじめて", "single_returning" => "戻ってきた",
+      "broad_scanner" => "多くの扉を試す手", "periodic_reader" => "名乗らない読者",
+      "claimed_bot" => "名乗る巡回者", "self_test" => "自己テスト",
+
+      "total" => "全部", "absence" => "不在", "presence" => "在",
+      "exception" => "例外", "method_refusal" => "拒んだ要求",
+
+      "applied" => "適用", "rejected" => "拒否",
+      "rolled_back" => "巻き戻し", "no_change" => "変えない",
+
+      "alive" => "生きている", "fossil" => "化石"
+    }.freeze
+
+    def label(key) = LABELS.fetch(key.to_s, key.to_s)
 
     def duration(seconds)
       s = seconds.to_i
@@ -98,7 +131,7 @@ class App < Sinatra::Base
     # request body は読まない。読まないことを、読まれる前に決めておく。
     observe!
     content_type "text/plain", charset: "utf-8"
-    halt 405, "I only listen. I do not take things in.\n"
+    halt 405, "私は聞くだけだ。受け取りはしない。\n"
   end
 
   after do
@@ -164,7 +197,7 @@ class App < Sinatra::Base
       # 壊れた声も観測である。500 を返すことで smoke test が気づける。
       Observer.record_exception(e, "Creature#respond_to_absence")
       status 500
-      halt 500, "Something in me failed: #{e.class}.\n\nGeneration #{Body.generation} is still standing.\n"
+      halt 500, "私の中の何かが壊れた: #{e.class}\n\n第 #{Body.generation} 世代は、まだ立っている。\n"
     end
 
     if AttentionScheduler.gaze?(event)
@@ -189,7 +222,7 @@ class App < Sinatra::Base
     content_type "text/plain", charset: "utf-8"
     status 500
     # class と正規化した message だけ。backtrace も実 path も出さない。
-    "Something in me failed: #{e.class}.\n\nGeneration #{Body.generation} is still standing.\n"
+    "私の中の何かが壊れた: #{e.class}\n\n第 #{Body.generation} 世代は、まだ立っている。\n"
   end
 
   # ---- 起動 ---------------------------------------------------------------

@@ -1,80 +1,80 @@
-<% @title = "status" %>
+<% @title = "状態" %>
 
 <section class="hero small">
-  <p class="eyebrow">fixed observation window</p>
-  <h1>status</h1>
+  <p class="eyebrow">固定された観測窓</p>
+  <h1 class="jp">状態</h1>
 </section>
 
 <section class="panel">
-  <h2>body</h2>
+  <h2>身体</h2>
   <dl class="kv">
     <dt>body_id</dt><dd><%= h(Body.short_id) %></dd>
     <dt>pid</dt><dd><%= h(Body.pid) %></dd>
-    <dt>uptime</dt><dd><%= h(duration(Body.uptime_sec)) %></dd>
-    <dt>generation</dt><dd><%= h(Body.generation) %></dd>
-    <dt>mode</dt><dd><%= h(Body.mode) %><%= h(Body.mode_reason ? " (#{Body.mode_reason})" : "") %></dd>
-    <dt>acquired routes</dt><dd><%= h(DynamicRoutes.count) %> / <%= h(Config.max_dynamic_routes) %></dd>
-    <dt>patched methods</dt><dd><%= h(Creature.patched_methods.empty? ? "none" : Creature.patched_methods.join(", ")) %></dd>
-    <dt>replay</dt><dd>
+    <dt>起きている時間</dt><dd><%= h(duration(Body.uptime_sec)) %></dd>
+    <dt>世代</dt><dd>第 <%= h(Body.generation) %> 世代</dd>
+    <dt>状態</dt><dd><%= h(label(Body.mode)) %><%= h(Body.mode_reason ? "（#{Body.mode_reason}）" : "") %></dd>
+    <dt>獲得した機能</dt><dd><%= h(DynamicRoutes.count) %> / <%= h(Config.max_dynamic_routes) %></dd>
+    <dt>書き換えた method</dt><dd><%= h(Creature.patched_methods.empty? ? "なし" : Creature.patched_methods.join("、")) %></dd>
+    <dt>起動時の再構築</dt><dd>
       <% r = App.replay_report %>
-      <%= h(r ? "applied #{r.applied}, skipped #{r.skipped}, failed #{r.failed}#{r.fossilized ? " · fossilized: #{r.reason}" : ""}" : "not run") %>
+      <%= h(r ? "適用 #{r.applied}・省略 #{r.skipped}・失敗 #{r.failed}#{r.fossilized ? " · 化石化: #{r.reason}" : ""}" : "未実行") %>
     </dd>
   </dl>
 </section>
 
 <section class="panel">
-  <h2>attention</h2>
+  <h2>注意力</h2>
   <dl class="kv">
-    <dt>day (JST)</dt><dd><%= h(@budget[:day]) %></dd>
-    <dt>spent</dt><dd>$<%= h(format('%.4f', @budget[:spent_usd])) %> / $<%= h(format('%.2f', @budget[:soft_limit_usd])) %></dd>
-    <dt>reserved</dt><dd>$<%= h(format('%.4f', @budget[:reserved_usd])) %></dd>
-    <dt>remaining</dt><dd>$<%= h(format('%.4f', @budget[:remaining_usd])) %></dd>
-    <dt>gaze left</dt><dd><%= h(@budget[:gaze_left]) %> <span class="muted">(<%= h(@attention[:gaze_enabled] ? "enabled" : "disabled") %>)</span></dd>
-    <dt>dream left</dt><dd><%= h(@budget[:dream_left]) %> <span class="muted">(<%= h(@attention[:dream_enabled] ? "enabled" : "disabled") %>)</span></dd>
-    <dt>exhausted events</dt><dd><%= h(@budget[:exhausted_events]) %></dd>
-    <dt>thinking</dt><dd><%= h(@budget[:thinking_stopped] ? "stopped for today (gateway 429)" : "available") %></dd>
-    <dt>dreaming now</dt><dd><%= h(@attention[:dreaming] ? "yes" : "no") %></dd>
-    <dt>events since last dream</dt><dd><%= h(@attention[:new_events_since_dream]) %></dd>
+    <dt>日付（JST）</dt><dd><%= h(@budget[:day]) %></dd>
+    <dt>使った</dt><dd>$<%= h(format('%.4f', @budget[:spent_usd])) %> / $<%= h(format('%.2f', @budget[:soft_limit_usd])) %></dd>
+    <dt>予約中</dt><dd>$<%= h(format('%.4f', @budget[:reserved_usd])) %></dd>
+    <dt>残り</dt><dd>$<%= h(format('%.4f', @budget[:remaining_usd])) %></dd>
+    <dt>注視の残り</dt><dd><%= h(@budget[:gaze_left]) %> 回 <span class="muted">(<%= h(@attention[:gaze_enabled] ? "有効" : "無効") %>)</span></dd>
+    <dt>夢の残り</dt><dd><%= h(@budget[:dream_left]) %> 回 <span class="muted">(<%= h(@attention[:dream_enabled] ? "有効" : "無効") %>)</span></dd>
+    <dt>考えられなかった回数</dt><dd><%= h(@budget[:exhausted_events]) %></dd>
+    <dt>思考</dt><dd><%= h(@budget[:thinking_stopped] ? "今日はもう止まっている（gateway 429）" : "できる") %></dd>
+    <dt>いま夢を見ているか</dt><dd><%= h(@attention[:dreaming] ? "見ている" : "見ていない") %></dd>
+    <dt>前の夢からの観測</dt><dd><%= h(@attention[:new_events_since_dream]) %> 件</dd>
   </dl>
 </section>
 
 <section class="panel">
-  <h2>what has reached me</h2>
+  <h2>届いたもの</h2>
   <dl class="kv">
     <% @observer[:counters].each do |k, v| %>
-      <dt><%= h(k) %></dt><dd><%= h(v) %></dd>
+      <dt><%= h(label(k)) %></dt><dd><%= h(v) %></dd>
     <% end %>
-    <dt>distinct paths</dt><dd><%= h(@observer[:distinct_paths]) %></dd>
-    <dt>distinct visitor buckets</dt><dd><%= h(@observer[:distinct_buckets]) %></dd>
-    <dt>avg reflex latency</dt><dd><%= h(Fitness.average_latency ? "#{Fitness.average_latency} ms" : "—") %></dd>
+    <dt>異なる path</dt><dd><%= h(@observer[:distinct_paths]) %></dd>
+    <dt>異なる訪問者</dt><dd><%= h(@observer[:distinct_buckets]) %></dd>
+    <dt>反射の平均</dt><dd><%= h(Fitness.average_latency ? "#{Fitness.average_latency} ms" : "—") %></dd>
   </dl>
 
   <% unless @observer[:families].empty? %>
     <ul class="families">
       <% @observer[:families].each do |name, count| %>
-        <li><span class="key"><%= h(name) %></span><span class="num"><%= h(count) %></span></li>
+        <li><span class="key"><%= h(label(name)) %></span><span class="num"><%= h(count) %></span></li>
       <% end %>
     </ul>
   <% end %>
 </section>
 
 <section class="panel">
-  <h2>recent absences</h2>
+  <h2>最近の不在</h2>
   <% recent = Observer.recent_absences %>
   <% if recent.empty? %>
-    <p class="muted">No one has knocked yet.</p>
+    <p class="muted">まだ誰も叩いていない。</p>
   <% else %>
     <table>
       <thead>
-        <tr><th>path</th><th>family</th><th>behavior</th><th>at</th></tr>
+        <tr><th>path</th><th>種類</th><th>ふるまい</th><th>時刻</th></tr>
       </thead>
       <tbody>
         <% recent.each do |a| %>
           <tr>
-            <td data-label="path"><%= h(a[:path] || "(undisplayable)") %></td>
-            <td data-label="family"><%= h(a[:family]) %></td>
-            <td data-label="behavior"><%= h(a[:behavior]) %></td>
-            <td data-label="at" class="muted"><%= h(a[:at]) %></td>
+            <td data-label="path"><%= h(a[:path] || "（表示できない名前）") %></td>
+            <td data-label="種類"><%= h(label(a[:family])) %></td>
+            <td data-label="ふるまい"><%= h(label(a[:behavior])) %></td>
+            <td data-label="時刻" class="muted"><%= h(a[:at]) %></td>
           </tr>
         <% end %>
       </tbody>
@@ -83,9 +83,9 @@
 </section>
 
 <section class="panel">
-  <h2>failures</h2>
+  <h2>壊れたもの</h2>
   <% if @observer[:exceptions].empty? %>
-    <p class="muted">Nothing has broken in this body yet.</p>
+    <p class="muted">この身体では、まだ何も壊れていない。</p>
   <% else %>
     <ul>
       <% @observer[:exceptions].each do |e| %>

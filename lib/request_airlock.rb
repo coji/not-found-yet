@@ -20,6 +20,10 @@ module RequestAirlock
   ASSET_LIKE = %r{\.(css|js|png|jpe?g|gif|svg|ico|woff2?|ttf|map|webp|avif)\z}i
   WELL_KNOWN = %r{\A/(\.well-known/|robots\.txt|sitemap\.xml|favicon\.ico|ads\.txt|security\.txt)}i
   QUESTION_LIKE = %r{\A/[a-z]+([-_][a-z]+){1,5}\z}i
+  # アドレスバーに日本語を打つ人がいる。それを unknown で捨てない。
+  JAPANESE = /[\p{Hiragana}\p{Katakana}\p{Han}ー]/
+  JAPANESE_PLACE = %r{\A/[\p{Hiragana}\p{Katakana}\p{Han}ー？?a-z0-9\-_/]{1,28}\z}i
+  JAPANESE_QUESTION = /[?？]\z|か\z|ですか\z|なの\z/
   CLAIMED_BOT = /(googlebot|bingbot|gptbot|claudebot|anthropic|perplexity|ccbot|applebot|yandex|baiduspider|duckduckbot|semrush|ahrefs|facebookexternalhit|slurp|oai-searchbot)/i
 
   @salt_day = nil
@@ -116,6 +120,11 @@ module RequestAirlock
     return "extension_probe" if path =~ EXTENSION_PROBE
     return "asset" if path =~ ASSET_LIKE
     return "opaque" if high_entropy?(path) || path.length > MAX_DISPLAY
+
+    if path =~ JAPANESE && path =~ JAPANESE_PLACE
+      return path =~ JAPANESE_QUESTION ? "question" : "imagined_place"
+    end
+
     return "question" if path =~ QUESTION_LIKE
     return "imagined_place" if path =~ %r{\A/[a-z][a-z0-9\-_/]{0,40}\z}i
 
@@ -128,7 +137,9 @@ module RequestAirlock
     return false if path.length > MAX_DISPLAY
     return false if high_entropy?(path)
 
-    path.match?(%r{\A[ -~]+\z}) && !path.include?("�")
+    # ASCII だけに絞ると、日本語で名指された場所が永久に表示されない。
+    # 制御文字は normalize_path で既に落ちているので、化けた文字だけ弾く。
+    !path.include?("\u{FFFD}")
   end
 
   # base64 や token のような path を「読めた」ことにしない。

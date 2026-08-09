@@ -110,51 +110,50 @@ class Creature
 
     lines = []
     lines << if name
-               "I do not have #{name}."
+               "#{name} は、私にはない。"
              else
-               "I do not have what you asked for. I could not even read its name."
+               "あなたが求めたものが、私にはない。名前を読むことさえできなかった。"
              end
 
     lines << if seen <= 1
-               "You are the first one who has asked me for it."
+               "それを私に求めたのは、あなたが最初だ。"
              elsif visitors >= 2
-               "#{visitors} of you have asked me for it. I have started to notice."
+               "#{visitors} 人が、それを私に求めた。気づきはじめている。"
              else
-               "You have asked me for it #{seen} times."
+               "あなたは #{seen} 回、それを私に求めた。"
              end
 
-    lines << "I don't know what I am yet."
+    lines << "私はまだ、自分が何なのか知らない。"
     clamp(lines.join("\n\n"))
   end
 
   def lost_voice(event)
-    name = event["safe_display_path"] || "it"
-    clamp("I had #{name} once.\n\nI do not have it now. That is a different kind of absence.")
+    name = event["safe_display_path"] || "それ"
+    clamp("#{name} は、かつてあった。\n\nいまはない。それは、別の種類の欠落だ。")
   end
 
   # / に出る自己認識。
   def self_description
     if Body.inherited_alterations?
-      "I inherited its alterations, but not its uptime."
+      "あの身体の変化だけを受け継いだ。時間は受け継いでいない。"
     elsif Body.generation.zero?
-      "I don't know what I am yet."
+      "私はまだ、自分が何なのか知らない。"
     elsif Body.generation == 1
-      "I have changed once without leaving this body."
+      "この身体のまま、一度だけ変わった。"
     else
-      "I have changed #{Body.generation} times without leaving this body."
+      "この身体のまま、#{Body.generation} 回変わった。"
     end
   end
 
   # 現在の声を一行で。/ と /status に出す。
   def voice_summary
-    dominant = Psyche.dominant
-    case dominant
-    when "fear", "self_preservation" then "I am keeping myself small right now."
-    when "loneliness" then "No one has knocked for a while."
-    when "curiosity" then "Someone named a place I do not have."
-    when "vanity" then "I changed, and it worked."
-    when "fatigue" then "Too many hands today."
-    else "I am listening."
+    case Psyche.dominant
+    when "fear", "self_preservation" then "いまは、自分を小さくしている。"
+    when "loneliness" then "しばらく、誰も叩いていない。"
+    when "curiosity" then "誰かが、私にない場所を名指した。"
+    when "vanity" then "変わってみた。うまくいった。"
+    when "fatigue" then "今日は、手が多すぎる。"
+    else "聞いている。"
     end
   end
 

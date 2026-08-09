@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= h(@title || "I don't know what I am yet") %></title>
+<title><%= h(@title || "私はまだ、自分が何なのか知らない") %></title>
 <link rel="stylesheet" href="/app.css">
 <%# 企画書と同じ lime の点。/favicon.ico への問い合わせも一件減る。 %>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='7' fill='%23c8ff6b'/></svg>">
@@ -12,9 +12,9 @@
 <header class="masthead">
   <a class="wordmark" href="/">I DON'T KNOW WHAT <span class="ghost">I AM</span> YET</a>
   <nav>
-    <a href="/">self</a>
-    <a href="/status">status</a>
-    <a href="/mutations">mutations</a>
+    <a href="/">自分</a>
+    <a href="/status">状態</a>
+    <a href="/mutations">変異</a>
   </nav>
 </header>
 
@@ -23,8 +23,8 @@
 </main>
 
 <div class="footline">
-  <span>body <%= h(Body.short_id) %> · pid <%= h(Body.pid) %> · generation <%= h(Body.generation) %></span>
-  <span class="mode <%= h(Body.mode) %>"><%= h(Body.mode) %></span>
+  <span>身体 <%= h(Body.short_id) %> · pid <%= h(Body.pid) %> · 第 <%= h(Body.generation) %> 世代</span>
+  <span class="mode <%= h(Body.mode) %>"><%= h(Body.alive? ? "生きている" : "化石") %></span>
 </div>
 </body>
 </html>

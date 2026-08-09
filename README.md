@@ -28,9 +28,13 @@ bundle exec puma -C config/puma.rb
 ```bash
 curl -i localhost:9292/garden
 curl    localhost:9292/garden     # 二度目は「2 回目だ」と言う
+curl    localhost:9292/庭          # 日本語で名指してもいい
 open    localhost:9292/status     # 固定観測窓
 open    localhost:9292/mutations  # 判断と、その結末
 ```
+
+この子が話す言葉、観測窓のラベル、Agent への contract はすべて日本語。
+作品名 `I Don't Know What I Am Yet` だけ英語のまま置いてある。
 
 `bundle exec rake introspect` で、今の身体を CLI から覗ける。
 
@@ -113,7 +117,7 @@ hash 不一致・欠番・破損があれば、その地点以降を適用せず
 
 `body_id` は cold start ごとに新しい UUID。PID だけでは再起動を識別しない。
 Fly の suspend / resume では memory snapshot が復元されるので、同じ身体の睡眠として扱う。
-新しい身体は「I inherited its alterations, but not its uptime.」と名乗る。
+新しい身体は「あの身体の変化だけを受け継いだ。時間は受け継いでいない。」と名乗る。
 
 ---
 

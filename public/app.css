@@ -139,15 +139,16 @@ h1 {
   max-width: 20ch;
   font-size: clamp(2.6rem, 8.4vw, 6.2rem);
   line-height: .89;
-  letter-spacing: -.06em;
   font-weight: 850;
-  text-transform: uppercase;
   text-wrap: balance;
 }
+/* 欧文は詰めるほど強くなるが、日本語に同じ tracking を当てると潰れる。 */
+h1.latin { letter-spacing: -.06em; text-transform: uppercase; }
+h1.jp { letter-spacing: -.02em; line-height: 1.08; font-feature-settings: "palt" 1; }
 .hero.small h1 {
   max-width: none;
   font-size: clamp(2.2rem, 6vw, 4.2rem);
-  letter-spacing: -.045em;
+  letter-spacing: -.03em;
   text-transform: none;
 }
 

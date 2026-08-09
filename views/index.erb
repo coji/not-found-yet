@@ -1,39 +1,39 @@
-<% @title = "I don't know what I am yet" %>
+<% @title = "私はまだ、自分が何なのか知らない" %>
 
 <section class="hero">
-  <p class="eyebrow">Generation <%= h(Body.generation) %></p>
-  <h1><%= headline(@creature.self_description) %></h1>
+  <p class="eyebrow">第 <%= h(Body.generation) %> 世代</p>
+  <%= headline_tag(@creature.self_description) %>
   <p class="voice"><%= h(@creature.voice_summary) %></p>
 </section>
 
 <section class="panel">
-  <h2>what I have</h2>
+  <h2>持っているもの</h2>
   <% routes = DynamicRoutes.active %>
   <% if routes.empty? %>
-    <p class="muted">Nothing yet. Only this page, and the absences you bring me.</p>
+    <p class="muted">まだ何もない。このページと、あなたたちが運んでくる欠落だけ。</p>
   <% else %>
     <ul class="routes">
       <% routes.each do |r| %>
         <li><a href="<%= h(r['path']) %>"><%= h(r['path']) %></a>
-          <span class="muted"><%= h(r['title']) %> · acquired at generation <%= h(r['generation']) %></span></li>
+          <span class="muted"><%= h(r['title']) %> · 第 <%= h(r['generation']) %> 世代で獲得</span></li>
       <% end %>
     </ul>
   <% end %>
 
   <% lost = DynamicRoutes.lost %>
   <% unless lost.empty? %>
-    <p class="lost">what I lost:
-      <% lost.each_with_index do |r, i| %><%= ", " if i.positive? %><%= h(r['path']) %><% end %>
+    <p class="lost">失ったもの：
+      <% lost.each_with_index do |r, i| %><%= "、" if i.positive? %><%= h(r['path']) %><% end %>
     </p>
   <% end %>
 </section>
 
 <section class="panel">
-  <h2>how I am</h2>
+  <h2>いまの状態</h2>
   <ul class="psyche">
     <% Psyche.state.each do |name, value| %>
       <li>
-        <span class="key"><%= h(name) %></span>
+        <span class="key"><%= h(label(name)) %></span>
         <span class="meter"><span style="width: <%= h((value.to_f * 100).round) %>%"></span></span>
         <span class="num"><%= h(format('%.2f', value)) %></span>
       </li>
@@ -42,14 +42,14 @@
 </section>
 
 <section class="panel quiet">
-  <p>Ask me for a place I do not have. Type a name into the address bar.</p>
-  <p class="muted">Every absence is recorded. A few of them become organs.</p>
+  <p>私にない場所を、ひとつ求めてほしい。アドレスバーに、その名前を書く。</p>
+  <p class="muted">すべての欠落は記録される。そのうちのいくつかが、器官になる。</p>
 </section>
 
 <%# ここから下は Creature の声ではなく、運用者が固定している注記。 %>
 <%# Agent は触れないし、世代が変わっても変わらない。 %>
 <footer class="colophon">
-  <span>this creature was written down before it existed</span>
-  <a href="https://artifactshare.com/a/moyeumho42" target="_blank" rel="noopener noreferrer">proposal &amp; spec</a>
-  <a href="https://github.com/coji/not-found-yet" target="_blank" rel="noopener noreferrer">source</a>
+  <span>この生き物は、存在するより先に書かれた</span>
+  <a href="https://artifactshare.com/a/moyeumho42" target="_blank" rel="noopener noreferrer">企画書 / 技術仕様書</a>
+  <a href="https://github.com/coji/not-found-yet" target="_blank" rel="noopener noreferrer">実装</a>
 </footer>

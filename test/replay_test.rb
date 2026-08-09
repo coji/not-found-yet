@@ -37,7 +37,7 @@ class ReplayTest < Minitest::Test
 
     assert_equal "0000-a-previous-body", Body.previous_id
     assert Body.inherited_alterations?
-    assert_includes Creature.current.self_description, "inherited"
+    assert_includes Creature.current.self_description, "受け継いだ"
     assert DynamicRoutes.lookup("/garden")
 
     # 今の身体の名前は、次の cold start のために置かれている。

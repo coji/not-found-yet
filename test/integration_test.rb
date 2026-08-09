@@ -19,7 +19,7 @@ class IntegrationTest < Minitest::Test
 
     get "/"
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "I don&#39;t know what I am yet"
+    assert_includes last_response.body, "自分が何なのか"
   end
 
   # 運用者が固定している注記。世代が変わっても、mutation でも消えない。
@@ -33,14 +33,14 @@ class IntegrationTest < Minitest::Test
   # 企画書と同じ見出し。まだ分かっていない部分だけが輪郭になる。
   def test_the_unknown_part_of_the_headline_is_hollow
     get "/"
-    assert_includes last_response.body, %(what <span class="ghost">I am</span> yet)
+    assert_includes last_response.body, %(私はまだ、<span class="ghost">自分が何なのか</span>知らない。)
 
     # 世代が進めば自己記述が変わり、輪郭にすべき部分もなくなる。
     apply_intent("type" => "add_route", "path" => "/garden", "title" => "g",
                  "lines" => ["here"], "content_type" => "text/plain")
     get "/"
-    assert_includes last_response.body, "I have changed once without leaving this body."
-    refute_includes last_response.body, 'class="ghost">I am'
+    assert_includes last_response.body, "この身体のまま、一度だけ変わった。"
+    refute_includes last_response.body, 'class="ghost">自分が何なのか'
   end
 
   def test_the_headline_escapes_what_the_creature_says
@@ -91,7 +91,7 @@ class IntegrationTest < Minitest::Test
     apply_intent("type" => "retire_route", "path" => "/garden", "gone" => true)
     get "/garden"
     assert_equal 410, last_response.status
-    assert_includes last_response.body, "once"
+    assert_includes last_response.body, "かつてあった"
   end
 
   def test_responses_are_not_cached
@@ -174,14 +174,14 @@ class IntegrationTest < Minitest::Test
 
     get "/mutations"
     assert_includes last_response.body, "add_route /garden"
-    assert_includes last_response.body, "applied"
+    assert_includes last_response.body, "適用"
 
     get "/mutations?seq=1"
     assert_includes last_response.body, "display only"
     assert_includes last_response.body, "DynamicRoutes.add"
 
     get "/status"
-    assert_includes last_response.body, "generation"
+    assert_includes last_response.body, "世代"
 
     get "/garden"
     assert_equal 200, last_response.status
