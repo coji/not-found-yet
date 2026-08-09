@@ -6,7 +6,9 @@
 # active flag を使う方が rollback しやすい。
 module DynamicRoutes
   # Agent が上書きできない path。観測窓と運用者の領域。
-  RESERVED = %w[/ /status /mutations /robots.txt /favicon.ico /app.css /health].freeze
+  RESERVED = %w[/ /status /mutations /robots.txt /favicon.ico /app.css /health /trace /traces].freeze
+  # 痕の住所は運用者の領域。Agent に取らせない。
+  RESERVED_PREFIXES = %w[/trace/ /traces/].freeze
   PATH_PATTERN = %r{\A/[a-z0-9][a-z0-9\-_/]{0,47}\z}
   MAX_LINES = 12
   MAX_LINE_CHARS = 200
@@ -31,6 +33,7 @@ module DynamicRoutes
     return false unless path.is_a?(String)
     return false unless path.match?(PATH_PATTERN)
     return false if reserved?(path)
+    return false if RESERVED_PREFIXES.any? { |pre| path.start_with?(pre) }
     return false if path.include?("//") || path.end_with?("/")
 
     true

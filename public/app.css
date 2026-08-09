@@ -298,6 +298,9 @@ code { font-family: var(--mono); }
 .status.rolled_back, .status.rejected { color: var(--rose); }
 .status.no_change { color: var(--faint); }
 
+a.became { color: var(--lime); font-family: var(--mono); text-decoration: none; border-bottom: 1px solid rgba(200,255,107,.3); }
+a.became:hover { border-bottom-color: var(--lime); }
+
 /* ---- colophon / footer ------------------------------------------------- */
 
 footer.colophon {

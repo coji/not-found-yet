@@ -12,6 +12,8 @@ require_relative "lib/psyche"
 require_relative "lib/request_airlock"
 require_relative "lib/observation_log"
 require_relative "lib/observer"
+require_relative "lib/trace_registry"
+require_relative "lib/conversation"
 require_relative "lib/creature"
 require_relative "lib/dynamic_routes"
 require_relative "lib/mutation_intent"
@@ -93,6 +95,28 @@ class App < Sinatra::Base
 
     def label(key) = LABELS.fetch(key.to_s, key.to_s)
 
+    # 痕にまつわる文面。Creature の声ではなく、運用者が固定している約束。
+    def trace_line(trace, how)
+      addr = "/trace/#{trace['id']}"
+      case how
+      when :minted then "この名指しに印をつけた。#{addr}"
+      when :revived then "その言葉を、いま思い出した。#{addr}"
+      else
+        askers = trace["askers"].to_i
+        return nil if askers < 2
+
+        "あなたは #{askers} 人目だ。最初の人の痕は #{addr} にある。"
+      end
+    end
+
+    def answer_line(answer)
+      about = answer["asked_about"]
+      said = answer["answer"] || "読めない名前"
+      return "「#{said}」と言ったね。それを憶えておく。" if about.nil?
+
+      "「#{said}」と言ったね。\n#{about} について、それを憶えておく。"
+    end
+
     def duration(seconds)
       s = seconds.to_i
       return "#{s}s" if s < 60
@@ -163,6 +187,18 @@ class App < Sinatra::Base
     erb :mutations
   end
 
+  # ---- 痕。訪問者が持ち帰れる住所 ----------------------------------------
+  # 見に来ること自体が注意を注ぐことなので、風化が止まり、鮮明さが戻る。
+  get %r{/trace/(\d{1,9})} do |id|
+    @trace = TraceRegistry.find(id.to_i)
+    halt 404 unless @trace
+
+    @trace = TraceRegistry.weather!(@trace)
+    @trace = TraceRegistry.visited!(@trace["id"]) || @trace
+    @weather = TraceRegistry.weather(@trace)
+    erb :trace
+  end
+
   get "/robots.txt" do
     content_type "text/plain", charset: "utf-8"
     ROBOTS
@@ -191,7 +227,7 @@ class App < Sinatra::Base
     headers "Cache-Control" => "no-store"
     content_type "text/plain", charset: "utf-8"
 
-    first_breath = begin
+    voice = begin
       Creature.current.respond_to_absence(event) # local, no LLM
     rescue StandardError => e
       # 壊れた声も観測である。500 を返すことで smoke test が気づける。
@@ -199,6 +235,40 @@ class App < Sinatra::Base
       status 500
       halt 500, "私の中の何かが壊れた: #{e.class}\n\n第 #{Body.generation} 世代は、まだ立っている。\n"
     end
+
+    # ---- ここから下は Creature が消せない層 --------------------------------
+    # 痕の住所は訪問者への約束なので、声の書き換えでは失われない。
+    parts = []
+    bucket = event["visitor_bucket"]
+
+    answered = begin
+      Conversation.answer!(bucket, event)
+    rescue StandardError
+      nil
+    end
+    parts << answer_line(answered) if answered
+
+    parts << voice
+
+    trace, how = begin
+      TraceRegistry.touch!(event)
+    rescue StandardError
+      nil
+    end
+    parts << trace_line(trace, how) if trace
+
+    unless answered
+      question = begin
+        Creature.current.question_for(event)
+      rescue StandardError
+        nil
+      end
+      if question && Conversation.ask!(bucket, question, event)
+        parts << question
+      end
+    end
+
+    first_breath = parts.reject { |x| x.to_s.empty? }.join("\n\n")
 
     if AttentionScheduler.gaze?(event)
       # 二拍子。第一声は即座に送る。第二声は間に合えば足す。
@@ -231,6 +301,7 @@ class App < Sinatra::Base
     Psyche.load!
     DynamicRoutes.load!
     EvolutionJournal.load!
+    TraceRegistry.load!
     TrustedMutator.smoke_app = self
 
     Body.begin_life!

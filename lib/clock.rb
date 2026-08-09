@@ -13,6 +13,11 @@ module Clock
     t.getlocal(JST).strftime("%Y-%m-%d")
   end
 
+  # 夜に来る人と、朝に来る巡回者を区別するために要る。
+  def hour_jst(t = now)
+    t.getlocal(JST).hour
+  end
+
   def iso(t = now)
     t.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
   end

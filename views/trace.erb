@@ -1,0 +1,66 @@
+<% @title = "痕 #{@trace['id']}" %>
+<% t = @trace %>
+<% days = TraceRegistry.days_since_attention(t) %>
+
+<section class="hero small">
+  <p class="eyebrow">痕 / trace <%= h(t['id']) %></p>
+  <% if @weather == :forgotten %>
+    <h1 class="jp">ここで何かが名指された。<span class="ghost">言葉は忘れた。</span></h1>
+  <% else %>
+    <h1 class="jp"><%= h(t['name']) %></h1>
+  <% end %>
+</section>
+
+<section class="panel">
+  <% if @weather == :forgotten %>
+    <p>ここで、まだ無い場所がひとつ名指された。私はその言葉をもう憶えていない。</p>
+    <p class="muted"><%= h(days.round) %> 日、誰もこの痕に戻ってこなかった。</p>
+    <p><strong>もしその名前を知っているなら、もう一度私に求めてほしい。</strong>
+      そうすれば思い出す。忘れてはいるが、聞けば分かる。</p>
+  <% else %>
+    <p>
+      <%= h(Clock.parse(t['at'])&.getlocal(Clock::JST)&.strftime('%Y年%-m月%-d日 %-H時')) %>、
+      この名前ではじめて私を呼んだ人がいる。あなたかもしれない。
+    </p>
+    <% if t['askers'].to_i >= 2 %>
+      <p>そのあと <%= h(t['askers'].to_i - 1) %> 人が、同じ名前で私を呼んだ。</p>
+    <% else %>
+      <p class="muted">まだ、この名前で私を呼んだのはその一人だけ。</p>
+    <% end %>
+    <% if @weather == :fading %>
+      <p class="reason"><%= h(days.round) %> 日、誰も戻ってこなかった。この痕は薄れかけている。</p>
+    <% end %>
+  <% end %>
+
+  <% if t['became'] %>
+    <p>この名指しは器官になった。 →
+      <a href="<%= h(t['became']) %>" class="became"><%= h(t['became']) %></a></p>
+  <% end %>
+  <% if t['revivals'].to_i.positive? %>
+    <p class="muted">この痕は <%= h(t['revivals']) %> 回、忘れられてから思い出された。</p>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>この痕について</h2>
+  <dl class="kv">
+    <dt>名指された回数</dt><dd><%= h(t['asks']) %></dd>
+    <dt>名指した人数</dt><dd><%= h(t['askers']) %></dd>
+    <dt>この痕を見に来た回数</dt><dd><%= h(t['visits']) %></dd>
+    <dt>種類</dt><dd><%= h(label(t['family'])) %></dd>
+    <dt>最後に注意が注がれてから</dt><dd><%= h(days.infinite? ? "—" : "#{days.round} 日") %></dd>
+    <dt>状態</dt><dd><%= h({ sharp: "鮮明", fading: "薄れかけ", forgotten: "忘れた" }[@weather]) %></dd>
+  </dl>
+</section>
+
+<section class="panel quiet">
+  <p>この痕は、誰かが注意を注いでいるあいだだけ残る。<br>
+    あなたが見に来ることでも、もう一度その名前で私を呼ぶことでも、鮮明さは戻る。</p>
+  <p class="muted">私はこれを、私が何かを保っているあいだは保つ。
+    それ以上のことは約束できない。</p>
+</section>
+
+<footer class="colophon">
+  <a href="/mutations">変異の記録</a>
+  <a href="/status">状態</a>
+</footer>

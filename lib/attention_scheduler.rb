@@ -115,12 +115,25 @@ module AttentionScheduler
     end
 
     Psyche.decay!
+    sweep_traces!
     silence = Observer.silence_seconds
     Psyche.observe_silence!(silence) if silence.finite?
     Fitness.evaluate! if Fitness.due?
     maybe_dream!
   rescue StandardError => e
     Observer.record_exception(e, "AttentionScheduler#tick")
+  end
+
+  # 読まれたときだけ風化させると、誰も見に来ない痕が永遠に鮮明なままになる。
+  # 忘却は、見られていなくても進まなければ意味がない。
+  @last_sweep_at = nil
+  def sweep_traces!
+    last = @mutex.synchronize { @last_sweep_at }
+    return if last && (Clock.now - last) < 3600
+
+    @mutex.synchronize { @last_sweep_at = Clock.now }
+    faded = TraceRegistry.sweep!
+    ObservationLog.note("traces_faded", "count" => faded) if faded.positive?
   end
 
   def dream?
@@ -224,6 +237,7 @@ module AttentionScheduler
       @last_gaze_at = nil
       @last_dream_at = nil
       @last_tick_at = nil
+      @last_sweep_at = nil
       @gazed_buckets = {}
     end
   end

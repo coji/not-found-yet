@@ -28,6 +28,13 @@ module Config
   def observation_log_dir = env("OBSERVATION_LOG_DIR", File.join(data_dir, "observations"))
   def observation_log? = bool("OBSERVATION_LOG", true)
 
+  # 痕。訪問者が持ち帰れる住所。失うと約束が嘘になるので、消さない。
+  def trace_dir = env("TRACE_DIR", File.join(data_dir, "traces"))
+  def traces? = bool("TRACES", true)
+
+  # 404 で問い、次のリクエストを答えとして受け取る。
+  def conversation? = bool("CONVERSATION", true)
+
   # alive: 観測・反射・注視・夢・mutation をすべて行う
   # fossil: 既存の応答と Journal は公開したまま、LLM 呼出と新しい mutation を止める
   def evolution_mode = env("EVOLUTION_MODE", "alive").downcase
@@ -87,7 +94,7 @@ module Config
 
   def ensure_dirs!
     [data_dir, journal_dir, mutation_dir, exhibit_dir, budget_dir,
-     tombstone_dir, lock_dir, observation_log_dir].each do |d|
+     tombstone_dir, lock_dir, observation_log_dir, trace_dir].each do |d|
       FileUtils.mkdir_p(d)
     end
   end

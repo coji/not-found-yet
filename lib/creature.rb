@@ -132,6 +132,26 @@ class Creature
     clamp("#{name} は、かつてあった。\n\nいまはない。それは、別の種類の欠落だ。")
   end
 
+  # 404 の終わりに問いを置く。答えは次にアドレスバーへ打たれる名前で返ってくる。
+  # フォームは作らない。入力面はアドレスバーだけ、という前提を崩さない。
+  QUESTIONS = [
+    "そこには何があるべきだと思う。次に打つ名前を、答えとして受け取る。",
+    "それはどんな場所のつもりだった。次の名前で教えてほしい。",
+    "私に何が足りないと思う。ひとつだけ名前を打ってほしい。"
+  ].freeze
+
+  def question_for(event)
+    return nil unless %w[imagined_place question].include?(event["family"])
+    return nil if event["safe_display_path"].nil?
+    return nil if Observer.path_seen_count(event["path_key"]) > 2
+    return nil if Psyche["fatigue"] > 0.6 || Psyche["fear"] > 0.5
+
+    # 好奇が高いほど訊く。疲れていれば黙る。
+    return nil unless rand < (0.25 + Psyche["curiosity"] * 0.5)
+
+    QUESTIONS[event["path_key"].sum % QUESTIONS.length]
+  end
+
   # / に出る自己認識。
   def self_description
     if Body.inherited_alterations?

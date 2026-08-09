@@ -24,12 +24,28 @@ module Observer
   @last_request_at = nil
   @new_events_since_dream = 0
   @meaningful_since_mutation = 0
+  @answers = []
+  @last_path_by_bucket = {}
+  @pairs = Hash.new(0)
+  @hours = Hash.new(0)
 
   module_function
 
   def record(event)
+    # 孤立したノックより、連なりのほうが多くを語る。
+    # 「/about のあと必ず /who を訊く人」は、2 件の観測ではなく 1 つの文脈である。
+    event["previous_path"] = @mutex.synchronize { @last_path_by_bucket[event["visitor_bucket"]] }
+    event["near_miss"] = near_miss(event["safe_display_path"])
+
     @mutex.synchronize do
       event["behavior"] = classify_behavior(event)
+      @hours[Clock.hour_jst] += 1
+      if event["previous_path"] && event["safe_display_path"]
+        @pairs["#{event['previous_path']} → #{event['safe_display_path']}"] += 1
+        @pairs.delete(@pairs.min_by { |_, v| v }&.first) while @pairs.size > 200
+      end
+      @last_path_by_bucket[event["visitor_bucket"]] = event["safe_display_path"]
+      @last_path_by_bucket.shift while @last_path_by_bucket.size > MAX_BUCKETS
       touch_bucket(event)
       touch_path(event)
       @families[event["family"]] += 1 if event["family"]
@@ -44,6 +60,50 @@ module Observer
     Psyche.observe!(event)
     ObservationLog.record(event)
     event
+  end
+
+  # 問いに対する答え。ふつうのノックより強い観測として別に持つ。
+  def record_answer(answer)
+    @mutex.synchronize do
+      @answers.push(answer)
+      @answers.shift while @answers.length > 60
+      @counters["answer"] += 1
+    end
+    Psyche.apply_with_saturation("curiosity" => 0.05, "loneliness" => -0.05, "vanity" => 0.02)
+    answer
+  end
+
+  # 既にある器官や、よく呼ばれる名前への「届きかけ」。
+  # 新しい欠落ではなく、手が滑った人として扱う。
+  def near_miss(display)
+    return nil if display.nil? || display.length < 5
+
+    candidates = DynamicRoutes.active.map { |r| r["path"] }
+    candidates += @mutex.synchronize do
+      @paths.values.select { |p| p[:display] && p[:count] >= 3 }.map { |p| p[:display] }
+    end
+    best = candidates.uniq.reject { |c| c == display }
+                     .map { |c| [c, levenshtein(display, c)] }
+                     .min_by { |(_, d)| d }
+    return nil if best.nil? || best[1] > 2
+
+    { "path" => best[0], "distance" => best[1] }
+  end
+
+  def levenshtein(a, b)
+    return b.length if a.empty?
+    return a.length if b.empty?
+    return 99 if (a.length - b.length).abs > 2
+
+    prev = (0..b.length).to_a
+    a.each_char.with_index do |ca, i|
+      cur = [i + 1]
+      b.each_char.with_index do |cb, j|
+        cur << [prev[j + 1] + 1, cur[j] + 1, prev[j] + (ca == cb ? 0 : 1)].min
+      end
+      prev = cur
+    end
+    prev.last
   end
 
   def record_exception(error, method_name)
@@ -155,6 +215,12 @@ module Observer
           "foreign_body" => @families["foreign_body"],
           "secret_probe" => @families["secret_probe"]
         },
+        "sequences" => @pairs.sort_by { |_, v| -v }.first(8).to_h,
+        "hours_jst" => @hours.sort.to_h,
+        "answers" => @answers.last(6).map do |a|
+          { "asked_about" => a["asked_about"], "question" => a["question"], "answer" => a["answer"] }
+        end,
+        "traces" => { "marked" => TraceRegistry.count },
         "silence" => { "seconds_since_last_request" => silence_seconds.round },
         "exceptions" => @exceptions.last(5).map { |e| { "class" => e["error_class"], "in" => e["in_method"] } },
         "counters" => @counters.dup
@@ -230,6 +296,13 @@ module Observer
       @last_request_at = nil
       @new_events_since_dream = 0
       @meaningful_since_mutation = 0
+      @answers = []
+      @last_path_by_bucket = {}
+      @pairs = Hash.new(0)
+      @hours = Hash.new(0)
     end
   end
+
+  def answers(limit = 10) = @mutex.synchronize { @answers.last(limit).reverse }
+  def sequences(limit = 8) = @mutex.synchronize { @pairs.sort_by { |_, v| -v }.first(limit) }
 end
