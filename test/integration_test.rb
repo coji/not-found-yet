@@ -30,6 +30,30 @@ class IntegrationTest < Minitest::Test
     assert_includes last_response.body, 'rel="noopener noreferrer"'
   end
 
+  # 企画書と同じ見出し。まだ分かっていない部分だけが輪郭になる。
+  def test_the_unknown_part_of_the_headline_is_hollow
+    get "/"
+    assert_includes last_response.body, %(what <span class="ghost">I am</span> yet)
+
+    # 世代が進めば自己記述が変わり、輪郭にすべき部分もなくなる。
+    apply_intent("type" => "add_route", "path" => "/garden", "title" => "g",
+                 "lines" => ["here"], "content_type" => "text/plain")
+    get "/"
+    assert_includes last_response.body, "I have changed once without leaving this body."
+    refute_includes last_response.body, 'class="ghost">I am'
+  end
+
+  def test_the_headline_escapes_what_the_creature_says
+    Creature.define_method(:self_description) { %(I am <script>alert(1)</script>) }
+    get "/"
+
+    refute_includes last_response.body, "<script>alert(1)"
+    assert_includes last_response.body, "&lt;script&gt;"
+    assert_includes last_response.body, %(<span class="ghost">I am</span>)
+  ensure
+    reload_creature_source!
+  end
+
   def test_observation_windows_are_fixed_and_always_present
     %w[/status /mutations /robots.txt].each do |path|
       get path

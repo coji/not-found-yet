@@ -52,6 +52,14 @@ class App < Sinatra::Base
   helpers do
     def h(text) = Rack::Utils.escape_html(text.to_s)
 
+    # 企画書と同じ見出し。まだ分かっていない部分だけを輪郭で残す。
+    # 文面は Creature が持っているので、"I am" が現れたときにだけ効く。
+    def headline(text)
+      text.to_s.split(/(\bI\s+am\b)/i).map do |part|
+        part.match?(/\AI\s+am\z/i) ? %(<span class="ghost">#{h(part)}</span>) : h(part)
+      end.join
+    end
+
     def duration(seconds)
       s = seconds.to_i
       return "#{s}s" if s < 60

@@ -2,7 +2,7 @@
 
 <section class="hero">
   <p class="eyebrow">Generation <%= h(Body.generation) %></p>
-  <h1><%= h(@creature.self_description) %></h1>
+  <h1><%= headline(@creature.self_description) %></h1>
   <p class="voice"><%= h(@creature.voice_summary) %></p>
 </section>
 

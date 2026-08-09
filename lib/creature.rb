@@ -138,6 +138,8 @@ class Creature
       "I inherited its alterations, but not its uptime."
     elsif Body.generation.zero?
       "I don't know what I am yet."
+    elsif Body.generation == 1
+      "I have changed once without leaving this body."
     else
       "I have changed #{Body.generation} times without leaving this body."
     end
