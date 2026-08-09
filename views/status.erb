@@ -65,15 +65,19 @@
     <p class="muted">No one has knocked yet.</p>
   <% else %>
     <table>
-      <tr><th>path</th><th>family</th><th>behavior</th><th>at</th></tr>
-      <% recent.each do |a| %>
-        <tr>
-          <td><%= h(a[:path] || "(undisplayable)") %></td>
-          <td><%= h(a[:family]) %></td>
-          <td><%= h(a[:behavior]) %></td>
-          <td class="muted"><%= h(a[:at]) %></td>
-        </tr>
-      <% end %>
+      <thead>
+        <tr><th>path</th><th>family</th><th>behavior</th><th>at</th></tr>
+      </thead>
+      <tbody>
+        <% recent.each do |a| %>
+          <tr>
+            <td data-label="path"><%= h(a[:path] || "(undisplayable)") %></td>
+            <td data-label="family"><%= h(a[:family]) %></td>
+            <td data-label="behavior"><%= h(a[:behavior]) %></td>
+            <td data-label="at" class="muted"><%= h(a[:at]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
     </table>
   <% end %>
 </section>

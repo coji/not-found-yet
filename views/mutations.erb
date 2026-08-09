@@ -79,18 +79,22 @@
       <p class="muted">I have not decided anything yet.</p>
     <% else %>
       <table>
-        <tr><th>seq</th><th>gen</th><th>intent</th><th>status</th><th>desire</th><th>cost</th><th>at</th></tr>
-        <% @entries.each do |e| %>
-          <tr>
-            <td><a href="/mutations?seq=<%= h(e['seq']) %>"><%= h(e['seq']) %></a></td>
-            <td><%= h(e['generation_after']) %></td>
-            <td><%= h(e['intent_description'] || e.dig('intent', 'type')) %></td>
-            <td><span class="status <%= h(e['status']) %>"><%= h(e['status']) %></span></td>
-            <td class="muted"><%= h(e['dominant_desire']) %></td>
-            <td class="muted">$<%= h(format('%.4f', e.dig('cost', 'attention_usd').to_f)) %></td>
-            <td class="muted"><%= h(e['at']) %></td>
-          </tr>
-        <% end %>
+        <thead>
+          <tr><th>seq</th><th>gen</th><th>intent</th><th>status</th><th>desire</th><th>cost</th><th>at</th></tr>
+        </thead>
+        <tbody>
+          <% @entries.each do |e| %>
+            <tr>
+              <td data-label="seq"><a href="/mutations?seq=<%= h(e['seq']) %>"><%= h(e['seq']) %></a></td>
+              <td data-label="gen"><%= h(e['generation_after']) %></td>
+              <td data-label="intent"><%= h(e['intent_description'] || e.dig('intent', 'type')) %></td>
+              <td data-label="status"><span class="status <%= h(e['status']) %>"><%= h(e['status']) %></span></td>
+              <td data-label="desire" class="muted"><%= h(e['dominant_desire']) %></td>
+              <td data-label="cost" class="muted">$<%= h(format('%.4f', e.dig('cost', 'attention_usd').to_f)) %></td>
+              <td data-label="at" class="muted"><%= h(e['at']) %></td>
+            </tr>
+          <% end %>
+        </tbody>
       </table>
     <% end %>
   </section>
