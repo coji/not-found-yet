@@ -1,0 +1,45 @@
+<% @title = "I don't know what I am yet" %>
+
+<section class="hero">
+  <p class="eyebrow">Generation <%= h(Body.generation) %></p>
+  <h1><%= h(@creature.self_description) %></h1>
+  <p class="voice"><%= h(@creature.voice_summary) %></p>
+</section>
+
+<section class="panel">
+  <h2>what I have</h2>
+  <% routes = DynamicRoutes.active %>
+  <% if routes.empty? %>
+    <p class="muted">Nothing yet. Only this page, and the absences you bring me.</p>
+  <% else %>
+    <ul class="routes">
+      <% routes.each do |r| %>
+        <li><a href="<%= h(r['path']) %>"><%= h(r['path']) %></a>
+          <span class="muted"><%= h(r['title']) %> · acquired at generation <%= h(r['generation']) %></span></li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <% lost = DynamicRoutes.lost %>
+  <% unless lost.empty? %>
+    <p class="lost">what I lost:
+      <% lost.each_with_index do |r, i| %><%= ", " if i.positive? %><span class="muted"><%= h(r['path']) %></span><% end %>
+    </p>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>how I am</h2>
+  <ul class="psyche">
+    <% Psyche.state.each do |name, value| %>
+      <li><span class="key"><%= h(name) %></span>
+        <span class="meter"><%= h(bar(value)) %></span>
+        <span class="num"><%= h(format('%.2f', value)) %></span></li>
+    <% end %>
+  </ul>
+</section>
+
+<section class="panel quiet">
+  <p>Ask me for a place I do not have. Type a name into the address bar.</p>
+  <p class="muted">Every absence is recorded. A few of them become organs.</p>
+</section>

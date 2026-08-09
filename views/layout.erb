@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= h(@title || "I don't know what I am yet") %></title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="masthead">
+  <a class="wordmark" href="/">I DON'T KNOW WHAT <span class="ghost">I AM</span> YET</a>
+  <nav>
+    <a href="/">self</a>
+    <a href="/status">status</a>
+    <a href="/mutations">mutations</a>
+  </nav>
+</header>
+
+<main>
+<%= yield %>
+</main>
+
+<footer>
+  <span>body <%= h(Body.short_id) %> · pid <%= h(Body.pid) %> · generation <%= h(Body.generation) %></span>
+  <span class="mode <%= h(Body.mode) %>"><%= h(Body.mode) %></span>
+</footer>
+</body>
+</html>

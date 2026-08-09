@@ -1,0 +1,8 @@
+.git
+.github
+data
+test
+tmp
+*.md
+!README.md
+.DS_Store

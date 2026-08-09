@@ -1,0 +1,42 @@
+app = "your-creature-name"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  DATA_DIR = "/data"
+  MUTATION_DIR = "/data/mutations"
+  JOURNAL_DIR = "/data/journal"
+  EXHIBIT_DIR = "/data/exhibits"
+  BUDGET_DIR = "/data/budget"
+  TOMBSTONE_DIR = "/data/tombstones"
+  LOCK_DIR = "/data/locks"
+  EVOLUTION_MODE = "alive"
+  TZ = "Asia/Tokyo"
+  # Gaze は最後に、少量だけ有効化する。
+  GAZE_ENABLED = "false"
+  DREAM_ENABLED = "true"
+
+[mounts]
+  source = "creature_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # suspend からの復帰は同じ身体。stop からの復帰は新しい身体。
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.concurrency]]
+    type = "requests"
+    soft_limit = 20
+
+# 高可用性より一個体性。Machine は 1 つだけ。
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpus = 1

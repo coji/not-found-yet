@@ -1,0 +1,113 @@
+<% @title = "mutations" %>
+
+<section class="hero small">
+  <p class="eyebrow">fixed observation window</p>
+  <h1>mutations</h1>
+  <p class="voice">Facts, and what I made of them. Both are kept, including the mistakes.</p>
+</section>
+
+<% if @selected %>
+  <% e = @selected %>
+  <section class="panel entry">
+    <p class="entry-head">
+      Generation <%= h(e['generation_after']) %> · Body <%= h(e['body_short_id']) %> · PID <%= h(e['pid']) %>
+      <span class="status <%= h(e['status']) %>"><%= h(e['status']) %></span>
+    </p>
+
+    <h3>Observation</h3>
+    <p><%= h(e['observation_summary'] || '—') %></p>
+
+    <h3>Interpretation</h3>
+    <p><%= h(e['interpretation'] || '—') %></p>
+
+    <h3>Dominant desire</h3>
+    <p><%= h(e['dominant_desire']) %>
+      <% if e['psyche'] %>
+        <span class="muted">
+          <% e['psyche'].sort_by { |_, v| -v.to_f }.first(3).each do |k, v| %>
+            <%= h("#{k} #{format('%.2f', v)}") %>
+          <% end %>
+        </span>
+      <% end %>
+    </p>
+
+    <% if e['candidates'] %>
+      <h3>Candidates</h3>
+      <ul>
+        <% e['candidates'].each_with_index do |c, i| %>
+          <li<%= i == e['choice_index'] ? ' class="chosen"' : '' %>>
+            <%= h(c.dig('intent', 'type')) %>
+            <span class="muted">expected gain <%= h(c['expected_gain']) %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <h3>Mutation</h3>
+    <p><%= h(e['intent_description'] || e.dig('intent', 'type') || '—') %></p>
+    <% if e['reason'] %><p class="reason"><%= h(e['reason']) %></p><% end %>
+
+    <% if @exhibit %>
+      <h3>Code exhibit <span class="muted">display only · never replayed</span></h3>
+      <pre><code><%= h(@exhibit) %></code></pre>
+    <% end %>
+
+    <h3>Cost</h3>
+    <p>complexity <%= h(e.dig('cost', 'complexity')) %> · attention $<%= h(format('%.4f', e.dig('cost', 'attention_usd').to_f)) %></p>
+
+    <% if e['sacrifice'] && !e['sacrifice'].empty? %>
+      <h3>Sacrifice</h3>
+      <p><%= h(e['sacrifice']) %></p>
+    <% end %>
+
+    <% if e['fitness'] %>
+      <h3>Fitness</h3>
+      <p><%= h(e['fitness']) %>
+        <span class="muted"><%= h(e['fitness_detail'].to_a.map { |k, v| "#{k} #{v}" }.join(' · ')) %></span></p>
+    <% end %>
+
+    <h3>Status</h3>
+    <p><%= h(e['status']) %>
+      · smoke <%= h(e.dig('smoke', 'passed') ? 'passed' : (e['smoke'] ? 'failed' : 'not run')) %>
+      · <%= h(e['pid_stable'] ? 'same PID' : 'PID CHANGED') %></p>
+
+    <p><a href="/mutations">← all generations</a></p>
+  </section>
+<% else %>
+  <section class="panel">
+    <% if @entries.empty? %>
+      <p class="muted">I have not decided anything yet.</p>
+    <% else %>
+      <table>
+        <tr><th>seq</th><th>gen</th><th>intent</th><th>status</th><th>desire</th><th>cost</th><th>at</th></tr>
+        <% @entries.each do |e| %>
+          <tr>
+            <td><a href="/mutations?seq=<%= h(e['seq']) %>"><%= h(e['seq']) %></a></td>
+            <td><%= h(e['generation_after']) %></td>
+            <td><%= h(e['intent_description'] || e.dig('intent', 'type')) %></td>
+            <td><span class="status <%= h(e['status']) %>"><%= h(e['status']) %></span></td>
+            <td class="muted"><%= h(e['dominant_desire']) %></td>
+            <td class="muted">$<%= h(format('%.4f', e.dig('cost', 'attention_usd').to_f)) %></td>
+            <td class="muted"><%= h(e['at']) %></td>
+          </tr>
+        <% end %>
+      </table>
+    <% end %>
+  </section>
+
+  <section class="panel">
+    <h2>scars</h2>
+    <% scars = EvolutionJournal.scars(8) %>
+    <% if scars.empty? %>
+      <p class="muted">No scars yet.</p>
+    <% else %>
+      <ul>
+        <% scars.each do |s| %>
+          <li><span class="status <%= h(s['status']) %>"><%= h(s['status']) %></span>
+            <%= h(s['intent'] || '—') %>
+            <span class="muted"><%= h(s['reason']) %></span></li>
+        <% end %>
+      </ul>
+    <% end %>
+  </section>
+<% end %>

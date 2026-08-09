@@ -1,0 +1,92 @@
+<% @title = "status" %>
+
+<section class="hero small">
+  <p class="eyebrow">fixed observation window</p>
+  <h1>status</h1>
+</section>
+
+<section class="panel">
+  <h2>body</h2>
+  <dl class="kv">
+    <dt>body_id</dt><dd><%= h(Body.short_id) %></dd>
+    <dt>pid</dt><dd><%= h(Body.pid) %></dd>
+    <dt>uptime</dt><dd><%= h(duration(Body.uptime_sec)) %></dd>
+    <dt>generation</dt><dd><%= h(Body.generation) %></dd>
+    <dt>mode</dt><dd><%= h(Body.mode) %><%= h(Body.mode_reason ? " (#{Body.mode_reason})" : "") %></dd>
+    <dt>acquired routes</dt><dd><%= h(DynamicRoutes.count) %> / <%= h(Config.max_dynamic_routes) %></dd>
+    <dt>patched methods</dt><dd><%= h(Creature.patched_methods.empty? ? "none" : Creature.patched_methods.join(", ")) %></dd>
+    <dt>replay</dt><dd>
+      <% r = App.replay_report %>
+      <%= h(r ? "applied #{r.applied}, skipped #{r.skipped}, failed #{r.failed}#{r.fossilized ? " · fossilized: #{r.reason}" : ""}" : "not run") %>
+    </dd>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>attention</h2>
+  <dl class="kv">
+    <dt>day (JST)</dt><dd><%= h(@budget[:day]) %></dd>
+    <dt>spent</dt><dd>$<%= h(format('%.4f', @budget[:spent_usd])) %> / $<%= h(format('%.2f', @budget[:soft_limit_usd])) %></dd>
+    <dt>reserved</dt><dd>$<%= h(format('%.4f', @budget[:reserved_usd])) %></dd>
+    <dt>remaining</dt><dd>$<%= h(format('%.4f', @budget[:remaining_usd])) %></dd>
+    <dt>gaze left</dt><dd><%= h(@budget[:gaze_left]) %> <span class="muted">(<%= h(@attention[:gaze_enabled] ? "enabled" : "disabled") %>)</span></dd>
+    <dt>dream left</dt><dd><%= h(@budget[:dream_left]) %> <span class="muted">(<%= h(@attention[:dream_enabled] ? "enabled" : "disabled") %>)</span></dd>
+    <dt>exhausted events</dt><dd><%= h(@budget[:exhausted_events]) %></dd>
+    <dt>thinking</dt><dd><%= h(@budget[:thinking_stopped] ? "stopped for today (gateway 429)" : "available") %></dd>
+    <dt>dreaming now</dt><dd><%= h(@attention[:dreaming] ? "yes" : "no") %></dd>
+    <dt>events since last dream</dt><dd><%= h(@attention[:new_events_since_dream]) %></dd>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>what has reached me</h2>
+  <dl class="kv">
+    <% @observer[:counters].each do |k, v| %>
+      <dt><%= h(k) %></dt><dd><%= h(v) %></dd>
+    <% end %>
+    <dt>distinct paths</dt><dd><%= h(@observer[:distinct_paths]) %></dd>
+    <dt>distinct visitor buckets</dt><dd><%= h(@observer[:distinct_buckets]) %></dd>
+    <dt>avg reflex latency</dt><dd><%= h(Fitness.average_latency ? "#{Fitness.average_latency} ms" : "—") %></dd>
+  </dl>
+
+  <% unless @observer[:families].empty? %>
+    <ul class="families">
+      <% @observer[:families].each do |name, count| %>
+        <li><span class="key"><%= h(name) %></span><span class="num"><%= h(count) %></span></li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>recent absences</h2>
+  <% recent = Observer.recent_absences %>
+  <% if recent.empty? %>
+    <p class="muted">No one has knocked yet.</p>
+  <% else %>
+    <table>
+      <tr><th>path</th><th>family</th><th>behavior</th><th>at</th></tr>
+      <% recent.each do |a| %>
+        <tr>
+          <td><%= h(a[:path] || "(undisplayable)") %></td>
+          <td><%= h(a[:family]) %></td>
+          <td><%= h(a[:behavior]) %></td>
+          <td class="muted"><%= h(a[:at]) %></td>
+        </tr>
+      <% end %>
+    </table>
+  <% end %>
+</section>
+
+<section class="panel">
+  <h2>failures</h2>
+  <% if @observer[:exceptions].empty? %>
+    <p class="muted">Nothing has broken in this body yet.</p>
+  <% else %>
+    <ul>
+      <% @observer[:exceptions].each do |e| %>
+        <li><code><%= h(e[:class]) %></code> in <%= h(e[:in]) %> <span class="muted"><%= h(e[:at]) %></span></li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
