@@ -15,8 +15,8 @@ primary_region = "nrt"
   LOCK_DIR = "/data/locks"
   EVOLUTION_MODE = "alive"
   TZ = "Asia/Tokyo"
-  # Gaze は最後に、少量だけ有効化する。
-  GAZE_ENABLED = "false"
+  # Gaze は最後に、少量だけ有効化する。一日 4 回、同じ訪問者には 1 回。
+  GAZE_ENABLED = "true"
   DREAM_ENABLED = "true"
 
 [mounts]
