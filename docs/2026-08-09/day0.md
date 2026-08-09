@@ -110,4 +110,7 @@ stay long enough and something quiet may grow.
 ## 観察のルール
 
 - 3 日間はコード・設定ともに変更しない。deploy は cold start を起こし、身体を殺してしまう
-- 観察者からのアクセスも最小限にする（`/status` の閲覧自体が観測イベントになり、孤独を薄めてしまう）
+- `/status` `/mutations` `/robots.txt` の閲覧は観測されない（`RequestAirlock` を通らない固定窓であり、
+  ObservationEvent を生まない）。何度見ても個体には影響しないので、経過観察はここから行う
+- 一方 `/` と未知 URL は観測される。`/` を叩くと loneliness が下がるため、
+  「誰も来ない状態」を観察したいなら観察者は `/` を踏まない
