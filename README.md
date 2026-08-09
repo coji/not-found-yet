@@ -127,8 +127,12 @@ fly secrets set EVOLUTION_MODE=fossil
 fly machine stop <machine-id>
 ```
 
-Machine 内に Fly API token は置かない。置く secret は Cloudflare AI Gateway の
-実行に必要な最小権限の token だけ。
+Machine 内に Fly API token は置かない。置く secret は Cloudflare の token ひとつだけ。
+
+その token に必要な権限は **Account → Workers AI → Read** である。
+`/accounts/{id}/ai/*` 系はすべてこの権限を要求し、AI Gateway 権限だけの token は
+401（code 10000）を返す（AI Gateway 権限が効くのは `/ai-gateway/*` の管理 API のほう）。
+third-party model を呼ぶには Unified Billing のクレジットを事前にロードしておく必要がある。
 
 ### 主な環境変数
 

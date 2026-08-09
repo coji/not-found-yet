@@ -46,9 +46,13 @@ module Providers
       end
 
       response = connection(timeout_ms).post(endpoint) do |req|
+        # /accounts/{id}/ai/* は Account > Workers AI > Read 権限の token を要求する。
+        # AI Gateway 権限だけの token は 401 (code 10000) を返す。
         req.headers["Authorization"] = "Bearer #{Config.cf_api_token}"
         req.headers["Content-Type"] = "application/json"
         req.headers["cf-aig-gateway-id"] = Config.cf_gateway_id
+        # gateway 側にも締切を渡す。こちらが諦めた後に provider が走り続けない。
+        req.headers["cf-aig-request-timeout"] = timeout_ms.to_s
         # 自動再試行はしない。同じ思考を二度買わない。
         req.headers["cf-aig-max-attempts"] = "1"
         # prompt / response 本文は保存しない。token・cost 等の metadata だけ残す。
