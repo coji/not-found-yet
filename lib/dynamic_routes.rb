@@ -9,7 +9,10 @@ module DynamicRoutes
   RESERVED = %w[/ /status /mutations /robots.txt /favicon.ico /app.css /health /trace /traces /go].freeze
   # 痕の住所は運用者の領域。Agent に取らせない。
   RESERVED_PREFIXES = %w[/trace/ /traces/].freeze
-  PATH_PATTERN = %r{\A/[a-z0-9][a-z0-9\-_/]{0,47}\z}
+  # 日本語で喋る生き物が、日本語で名付けられないのはおかしい。
+  # ただし . % ? # : 空白は入れない。名前であって、式でもファイルでもない。
+  NAME_CHARS = 'a-z0-9\-_/\p{Hiragana}\p{Katakana}\p{Han}ー？'
+  PATH_PATTERN = /\A\/[#{NAME_CHARS}]{1,48}\z/
   MAX_LINES = 12
   MAX_LINE_CHARS = 200
 

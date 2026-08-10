@@ -2,6 +2,7 @@
 
 require "rack"
 require "rack/mock"
+require "uri"
 
 # LLM 出力を eval しない。Intent を Ruby closure へコンパイルし、
 # 現在のプロセスへ define_method / registry 更新として適用する。
@@ -270,17 +271,20 @@ module TrustedMutator
     checks << [intent["surface"], 200] if intent["type"] == "speak_to_machines"
 
     mock = Rack::MockRequest.new(app)
-    checks.each do |path, expected|
+    checks.each do |raw_path, expected|
+      # MockRequest は ASCII の URI しか受けない。日本語の名前はここで encode する。
+      # ブラウザから届くのも同じ形なので、これは現実に近い経路でもある。
+      path = URI::DEFAULT_PARSER.escape(raw_path.to_s)
       # creature.smoke は HTTP_ 接頭辞を持たないので、外から header で偽装できない。
       # 自己テストを「訪問」として数えないための印。
       res = mock.get(path, SMOKE_ENV_KEY => true,
                            "HTTP_USER_AGENT" => "creature-smoke/1", "REMOTE_ADDR" => "127.0.0.1")
       allowed = Array(expected)
       unless allowed.include?(res.status)
-        return { "passed" => false, "reason" => "#{path} returned #{res.status}, expected #{allowed.join('/')}" }
+        return { "passed" => false, "reason" => "#{raw_path} returned #{res.status}, expected #{allowed.join('/')}" }
       end
       if res.body.to_s.length > 20_000
-        return { "passed" => false, "reason" => "#{path} body too large" }
+        return { "passed" => false, "reason" => "#{raw_path} body too large" }
       end
     end
     { "passed" => true, "checks" => checks.length }

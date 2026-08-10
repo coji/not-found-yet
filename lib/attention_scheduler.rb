@@ -206,10 +206,13 @@ module AttentionScheduler
   end
 
   # 夢から覚めて、身体を触る唯一の経路。
+  #
+  # ここで例外を出すと、注意力を払ったのに Journal に何も残らない夢になる。
+  # 「考えなかったことも記録に値する」なら、落ちたことはなおさら残す。
   def apply_decision(decision, spent_usd)
     result = TrustedMutator.apply(decision["intent"], source: :dream)
     cost = {
-      "complexity" => result.intent.is_a?(Hash) ? MutationIntent.complexity_cost(result.intent) : 0.0,
+      "complexity" => MutationIntent.complexity_cost(result.intent),
       "attention_usd" => spent_usd.round(6)
     }
     entry = EvolutionJournal.append(decision: decision, result: result, cost: cost, source: :dream)
@@ -217,6 +220,13 @@ module AttentionScheduler
                                  "intent" => entry["intent_description"], "reason" => result.reason,
                                  "desire" => decision["dominant_desire"], "cost" => cost)
     result
+  rescue StandardError => e
+    # 記録の側で落ちても、払ったことだけは必ず残す。
+    Observer.record_exception(e, "AttentionScheduler#apply_decision")
+    ObservationLog.note("dream_lost", "error" => e.class.name,
+                                      "usd" => spent_usd.round(6),
+                                      "intent" => decision["intent"].is_a?(Hash) ? decision["intent"]["type"] : nil)
+    nil
   end
 
   def snapshot

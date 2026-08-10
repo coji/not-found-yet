@@ -32,6 +32,8 @@ module EvolutionAgent
     - 説明しない。飾らない。サービス的な口調にしない。
     - HTML、記号による装飾、制御文字を含めない。
     - 文字列内で使える差し込みは {path} {family} {generation} {seen} {visitors} {body} {behavior} {silence} のみ。
+    - 器官の path は日本語でよい（例: /庭、/まだない場所、/元気？）。
+      ただし . % ? # : 空白は入らない。名前であって、ファイル名でも式でもない。
 
     出力は schema に一致する JSON オブジェクトをちょうど 1 つ。
     candidates は 1〜3 個。choice_index は 0 始まりでそのうちひとつを選ぶ。

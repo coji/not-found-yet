@@ -373,17 +373,23 @@ module MutationIntent
 
   # ---- 複雑性コスト ------------------------------------------------------
   # 獲得は必ず何かを重くする。上限に当たったら retire を要求できるように。
+  #
+  # 拒否された intent は正規化を通っていない。欠けた field を前提にすると、
+  # 「払ったのに記録が残らない夢」になる。ここは常に nil 安全にしておく。
   def complexity_cost(intent)
+    return 0.0 unless intent.is_a?(Hash)
+
+    lines = Array(intent["lines"]).length
     case intent["type"]
-    when "add_route" then 0.10 + 0.01 * intent["lines"].length
-    when "add_organ" then 0.12 + 0.01 * intent["lines"].length + (intent["faces"] ? 0.03 * intent["faces"].length : 0)
+    when "add_route" then 0.10 + 0.01 * lines
+    when "add_organ" then 0.12 + 0.01 * lines + 0.03 * Array(intent["faces"]).length
     when "reshape_organ" then 0.03
-    when "rewrite_absence_voice" then 0.02 * intent["templates"].length
-    when "wrap_method" then 0.03 * intent["transforms"].length
+    when "rewrite_absence_voice" then 0.02 * Array(intent["templates"]).length
+    when "wrap_method" then 0.03 * Array(intent["transforms"]).length
     when "retire_route" then -0.08
     when "adjust_desire_weights" then 0.01
     when "add_reflex_condition" then 0.06
-    when "speak_to_machines" then 0.04 + 0.005 * intent["lines"].length
+    when "speak_to_machines" then 0.04 + 0.005 * lines
     when "invent_family" then 0.05
     when "forget_family" then -0.04
     else 0.0
@@ -391,20 +397,30 @@ module MutationIntent
   end
 
   def describe(intent)
+    return "(no intent)" unless intent.is_a?(Hash)
+
+    path = intent["path"]
     case intent["type"]
-    when "add_route" then "add_route #{intent['path']}"
-    when "add_organ" then "add_organ #{intent['path']} (#{intent['form']}/#{intent['mood']})"
-    when "reshape_organ" then "reshape_organ #{intent['path']} → #{intent['form']}/#{intent['mood']}/#{intent['motion']}"
-    when "retire_route" then "retire_route #{intent['path']}"
-    when "wrap_method" then "wrap_method #{intent['method']} (#{intent['transforms'].map { |t| t['op'] }.join(', ')})"
-    when "rewrite_absence_voice" then "rewrite_absence_voice (#{intent['templates'].length} templates)"
-    when "adjust_desire_weights" then "adjust_desire_weights #{intent['deltas'].keys.join(', ')}"
-    when "add_reflex_condition" then "add_reflex_condition #{ReflexConditions.describe(intent['rule'])}"
+    when "add_route" then "add_route #{path}"
+    when "add_organ" then "add_organ #{path} (#{intent['form']}/#{intent['mood']})"
+    when "reshape_organ" then "reshape_organ #{path} → #{intent['form']}/#{intent['mood']}/#{intent['motion']}"
+    when "retire_route" then "retire_route #{path}"
+    when "wrap_method"
+      ops = Array(intent["transforms"]).filter_map { |t| t["op"] if t.is_a?(Hash) }
+      "wrap_method #{intent['method']} (#{ops.join(', ')})"
+    when "rewrite_absence_voice" then "rewrite_absence_voice (#{Array(intent['templates']).length} templates)"
+    when "adjust_desire_weights" then "adjust_desire_weights #{Hash(intent['deltas']).keys.join(', ')}"
+    when "add_reflex_condition"
+      rule = intent["rule"]
+      rule.is_a?(Hash) && rule["when"].is_a?(Hash) && rule["do"].is_a?(Hash) ?
+        "add_reflex_condition #{ReflexConditions.describe(rule)}" : "add_reflex_condition"
     when "speak_to_machines" then "speak_to_machines #{intent['surface']}"
     when "invent_family" then "invent_family #{intent['family_name']} (#{intent['match_shape']}: #{intent['match_value']})"
     when "forget_family" then "forget_family #{intent['family_name']}"
     else intent["type"].to_s
     end
+  rescue StandardError
+    intent["type"].to_s
   end
 
   # ---- structured output の strict schema -------------------------------

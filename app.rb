@@ -4,6 +4,7 @@ require "sinatra/base"
 require "erb"
 require "rack/utils"
 require "uri"
+require "cgi"
 
 require_relative "lib/config"
 require_relative "lib/clock"
@@ -120,6 +121,13 @@ class App < Sinatra::Base
       return "「#{said}」と言ったね。それを憶えておく。" if about.nil?
 
       "「#{said}」と言ったね。\n#{about} について、それを憶えておく。"
+    end
+
+    # percent encode されて届いた名前を、一度だけ戻す。二度は戻さない。
+    def decode_once(path)
+      CGI.unescape(path).encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    rescue StandardError
+      path
     end
 
     # 外へは出さない。相対 path だけを通す。
@@ -270,8 +278,11 @@ class App < Sinatra::Base
   # route entry を出し入れするのではなく、registry の active flag で切り替える。
   # 失った機能は pass して not_found へ落ち、そこで 410 になる。
   # Mustermann が前後を anchor するので、ここでは \A / \z を書かない。
-  get %r{/([a-z0-9][a-z0-9\-_/]{0,47})} do |slug|
-    entry = DynamicRoutes.lookup("/#{slug}")
+  # PATH_INFO は percent encode されたまま届くので、% と大文字 hex も通す。
+  # ここは registry を引くだけなので、外れたら pass して 404 へ落ちる。
+  get %r{/([A-Za-z0-9%\-_/\p{Hiragana}\p{Katakana}\p{Han}ー？]{1,450})} do |slug|
+    # airlock と同じく、decode は一度だけ。
+    entry = DynamicRoutes.lookup(decode_once("/#{slug}"))
     pass unless entry
 
     event = observe!(kind: "presence", family: "acquired")
