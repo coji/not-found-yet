@@ -111,6 +111,57 @@ class TraceTest < Minitest::Test
     assert_equal :sharp, TraceRegistry.weather(TraceRegistry.find(1))
   end
 
+  # ---- 住所は辿れる ------------------------------------------------------
+
+  def test_the_address_is_clickable_in_the_skin
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
+
+    assert_includes last_response.body, %(<a class="trace-link" href="/trace/1">/trace/1</a>)
+  end
+
+  # plain text は正本なので、素のまま。
+  def test_the_plain_answer_keeps_the_bare_address
+    get "/garden"
+
+    assert_includes last_response.body, "この名指しに印をつけた。/trace/1"
+    refute_includes last_response.body, "<a"
+  end
+
+  # 器官は誰かの思いつきから生えている。そこへ戻れる。
+  def test_an_organ_points_back_to_the_person_who_named_it
+    get "/garden"
+    apply_intent("type" => "add_organ", "path" => "/garden", "title" => "庭",
+                 "form" => "shell", "source" => "recurring", "mood" => "curious",
+                 "motion" => "drift", "lines" => ["ここにある。"])
+
+    get "/garden"
+    assert_includes last_response.body, %(<a href="/trace/1">この場所を名指した人の痕</a>)
+
+    # 痕からは器官へ。往復できる。
+    get "/trace/1"
+    assert_includes last_response.body, %(href="/garden")
+  end
+
+  def test_an_organ_nobody_named_has_nothing_to_point_at
+    apply_intent("type" => "add_organ", "path" => "/unasked", "title" => "x",
+                 "form" => "pulse", "source" => "psyche", "mood" => "quiet",
+                 "motion" => "still", "lines" => ["誰も求めていない。"])
+    get "/unasked"
+
+    refute_includes last_response.body, "名指した人の痕"
+  end
+
+  # 痕のふりをした文字列を差し込まれても、リンクにはならない。
+  def test_it_only_links_addresses_that_are_addresses
+    apply_intent("type" => "rewrite_absence_voice",
+                 "templates" => [{ "family" => "*", "lines" => ["/trace/abc /traceX/1 をどうぞ"] }],
+                 "max_length" => 200)
+    get "/nowhere", nil, "HTTP_ACCEPT" => "text/html"
+
+    refute_includes last_response.body, "/trace/abc</a>"
+    refute_includes last_response.body, "traceX/1</a>"
+  end
+
   # ---- 痕は Creature に消せない ------------------------------------------
 
   def test_the_creature_cannot_take_the_address_away

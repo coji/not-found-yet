@@ -84,6 +84,7 @@ module TrustedRenderer
         <footer class="organ-foot">
           <span>#{esc(entry['path'])}</span>
           <span>第 #{Body.generation} 世代の身体が、いま描いた</span>
+          #{origin_link(entry['path'])}
           <a href="/">自分</a>
         </footer>
       </body>
@@ -107,7 +108,7 @@ module TrustedRenderer
       </head>
       <body class="organ">
         <figure class="organ-view">#{svg('field', mood, event)}</figure>
-        <div class="organ-said">#{text.to_s.split(/\n{2,}/).map { |para| "<p>#{esc(para)}</p>" }.join}
+        <div class="organ-said">#{text.to_s.split(/\n{2,}/).map { |para| "<p>#{link_traces(esc(para))}</p>" }.join}
     HTML
     tail = <<~HTML
         </div>
@@ -123,7 +124,17 @@ module TrustedRenderer
     [head, tail]
   end
 
-  def second_breath_html(text) = %(<p class="second">#{esc(text)}</p>)
+  def second_breath_html(text) = %(<p class="second">#{link_traces(esc(text))}</p>)
+
+  # この場所を最初に名指した人の痕。器官は、誰かの思いつきから生えている。
+  def origin_link(path)
+    id = TraceRegistry.id_for(RequestAirlock.path_key(path.to_s))
+    return "" unless id
+
+    %(<a href="/trace/#{id}">この場所を名指した人の痕</a>)
+  rescue StandardError
+    ""
+  end
 
   # いまの気分がそのまま配色になる。器官と違って、これは選べない。
   def mood_from_psyche
@@ -138,6 +149,12 @@ module TrustedRenderer
   end
 
   def esc(text) = Rack::Utils.escape_html(text.to_s)
+
+  # 痕の住所はリンクにする。escape したあとで、数字だけの捕獲を差し込む。
+  # plain text 側は素のまま。あちらが正本で、これは皮の上の便宜。
+  def link_traces(escaped)
+    escaped.gsub(%r{/trace/(\d{1,9})}) { %(<a class="trace-link" href="/trace/#{Regexp.last_match(1)}">/trace/#{Regexp.last_match(1)}</a>) }
+  end
 
   def style(mood, motion)
     fg, dim = PALETTE.fetch(mood, PALETTE["quiet"])
@@ -163,6 +180,8 @@ module TrustedRenderer
         font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.68rem;letter-spacing:.1em}
       .organ-foot a{color:#{dim};text-decoration:none}
       .organ-foot a:hover{color:#{fg}}
+      .organ-said a.trace-link{color:#{fg};text-decoration:none;border-bottom:1px solid #{dim}}
+      .organ-said a.trace-link:hover{border-bottom-color:#{fg}}
       .wander{align-self:center;width:100%;max-width:44rem}
       .wander label{display:block;color:#626a68;font-family:ui-monospace,Menlo,monospace;
         font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;margin-bottom:.6rem}
