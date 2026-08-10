@@ -149,7 +149,7 @@ class App < Sinatra::Base
           <label for="to">まだ無い場所の名前を、ひとつ</label>
           <div class="wander-row">
             <input id="to" name="to" type="text" value="#{value}" maxlength="80"
-                   spellcheck="false" autocomplete="off" placeholder="/庭">
+                   spellcheck="false" autocomplete="off">
             <button type="submit">求める</button>
           </div>
         </form>

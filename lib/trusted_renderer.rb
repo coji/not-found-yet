@@ -54,7 +54,7 @@ module TrustedRenderer
         <label for="to">つぎに求める場所</label>
         <div class="wander-row">
           <input id="to" name="to" type="text" value="#{esc(current)}" maxlength="80"
-                 spellcheck="false" autocomplete="off" placeholder="/庭">
+                 spellcheck="false" autocomplete="off">
           <button type="submit">求める</button>
         </div>
       </form>
