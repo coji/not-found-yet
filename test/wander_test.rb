@@ -101,7 +101,7 @@ class WanderTest < Minitest::Test
     apply_intent("type" => "add_organ", "path" => "/garden", "title" => "庭",
                  "form" => "shell", "source" => "recurring", "mood" => "curious",
                  "motion" => "drift", "lines" => ["ここにある。"])
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
 
     assert_includes last_response.body, %(action="/go")
     assert_includes last_response.body, %(value="/garden")
@@ -127,7 +127,7 @@ class WanderTest < Minitest::Test
     apply_intent("type" => "add_organ", "path" => "/garden", "title" => "庭",
                  "form" => "pulse", "source" => "psyche", "mood" => "lonely",
                  "motion" => "breathe", "lines" => ["ここにある。"])
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
 
     refute_includes last_response.body, "<script"
     refute_includes last_response.body, "onsubmit"

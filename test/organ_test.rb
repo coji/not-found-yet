@@ -30,7 +30,7 @@ class OrganTest < Minitest::Test
     assert_equal "applied", r.status, r.reason
 
     3.times { |i| get "/came-#{i}" }
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
 
     assert_equal 200, last_response.status
     assert_includes last_response.content_type, "text/html"
@@ -44,18 +44,18 @@ class OrganTest < Minitest::Test
   # 二度見れば二度とも違う。観測が増えれば絵も増える。
   def test_the_same_organ_shows_something_else_later
     apply_intent(organ)
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
     before = last_response.body.scan("<circle").length
 
     10.times { |i| get "/later-#{i}" }
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
 
     assert_operator last_response.body.scan("<circle").length, :>, before
   end
 
   def test_it_never_writes_script
     apply_intent(organ("motion" => "breathe"))
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
 
     refute_includes last_response.body, "<script"
     refute_includes last_response.body, "onload"
@@ -151,7 +151,7 @@ class OrganTest < Minitest::Test
     # 場所は同じ。名指した人の痕はそのまま指し続ける。
     assert_equal "/garden", entry["path"]
 
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
     assert_includes last_response.body, "ここは前とは違うものになった。"
     assert_includes last_response.body, "curiosity"
   end

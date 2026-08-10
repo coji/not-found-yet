@@ -19,6 +19,13 @@ module MutationIntent
     no_change
   ].freeze
 
+  # 「再生できるもの」と「提案してよいもの」は別。
+  # add_route は本番に生えている個体の manifest を replay するために
+  # validate は通すが、メニューからは外す。互換のために用意した退化形を
+  # 選ばせ続けると、生き物は静かなページを増やすだけになる。
+  LEGACY_TYPES = %w[add_route].freeze
+  PROPOSABLE_TYPES = (TYPES - LEGACY_TYPES).freeze
+
   # wrap_method で触ってよい method は列挙のみ。
   WRAPPABLE_METHODS = %w[respond_to_absence absent_voice lost_voice self_description voice_summary].freeze
   CONTENT_TYPES = %w[text/plain text/html].freeze
@@ -462,7 +469,7 @@ module MutationIntent
                        rule surface family_name match_shape match_value
                        form source mood motion faces],
       "properties" => {
-        "type" => { "type" => "string", "enum" => TYPES },
+        "type" => { "type" => "string", "enum" => PROPOSABLE_TYPES },
         "path" => nullable({ "type" => "string" }),
         "title" => nullable({ "type" => "string" }),
         "lines" => nullable({ "type" => "array", "items" => { "type" => "string" } }),

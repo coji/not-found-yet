@@ -98,7 +98,7 @@ class ResilienceTest < Minitest::Test
 
     # 実際の client は必ず percent encode して送ってくる。
     # （rack-test は生 UTF-8 の URI を組み立てられないので、ここでは試さない）
-    get "/%E5%BA%AD"
+    get "/%E5%BA%AD", nil, "HTTP_ACCEPT" => "text/html"
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "ここにある。"

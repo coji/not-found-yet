@@ -134,7 +134,7 @@ class TraceTest < Minitest::Test
                  "form" => "shell", "source" => "recurring", "mood" => "curious",
                  "motion" => "drift", "lines" => ["ここにある。"])
 
-    get "/garden"
+    get "/garden", nil, "HTTP_ACCEPT" => "text/html"
     assert_includes last_response.body, %(<a href="/trace/1">この場所を名指した人の痕</a>)
 
     # 痕からは器官へ。往復できる。
@@ -146,7 +146,7 @@ class TraceTest < Minitest::Test
     apply_intent("type" => "add_organ", "path" => "/unasked", "title" => "x",
                  "form" => "pulse", "source" => "psyche", "mood" => "quiet",
                  "motion" => "still", "lines" => ["誰も求めていない。"])
-    get "/unasked"
+    get "/unasked", nil, "HTTP_ACCEPT" => "text/html"
 
     refute_includes last_response.body, "名指した人の痕"
   end

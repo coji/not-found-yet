@@ -78,7 +78,7 @@ module TrustedRenderer
       <style>#{style(mood, motion)}</style>
       </head>
       <body class="organ">
-        <figure class="organ-view">#{svg(form, mood, event)}</figure>
+        #{figure(svg(form, mood, event))}
         <div class="organ-said">#{lines.map { |l| "<p>#{esc(l)}</p>" }.join}</div>
         #{wander(entry['path'])}
         <footer class="organ-foot">
@@ -147,6 +147,8 @@ module TrustedRenderer
     else "quiet"
     end
   end
+
+  def figure(body) = body.empty? ? "" : %(<figure class="organ-view">#{body}</figure>)
 
   def esc(text) = Rack::Utils.escape_html(text.to_s)
 

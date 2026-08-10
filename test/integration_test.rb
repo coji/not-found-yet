@@ -188,11 +188,18 @@ class IntegrationTest < Minitest::Test
     assert_includes last_response.body, "you named it first."
   end
 
-  def test_acquired_route_is_html_escaped_when_served_as_html
-    apply_intent("type" => "add_route", "path" => "/note", "title" => "n",
-                 "lines" => ["plain & simple"], "content_type" => "text/html")
-    get "/note"
+  def test_what_an_organ_says_is_escaped_in_the_skin
+    apply_intent("type" => "add_organ", "path" => "/note", "title" => "n",
+                 "form" => "still", "source" => nil, "mood" => "quiet", "motion" => "still",
+                 "lines" => ["plain & simple"])
+
+    get "/note", nil, "HTTP_ACCEPT" => "text/html"
     assert_includes last_response.body, "plain &amp; simple"
+
+    # curl には言葉だけ。皮は着せない。
+    get "/note"
+    assert_includes last_response.content_type, "text/plain"
+    assert_equal "plain & simple\n", last_response.body
   end
 
   # ---- 予算 --------------------------------------------------------------
@@ -340,7 +347,11 @@ class IntegrationTest < Minitest::Test
     intent = schema.dig("properties", "candidates", "items", "properties", "intent")
     assert_equal false, intent["additionalProperties"]
     assert_equal intent["properties"].keys.sort, intent["required"].sort
-    assert_equal MutationIntent::TYPES, intent.dig("properties", "type", "enum")
+    # 再生できるものと、提案してよいものは別。
+    # 互換のために残した add_route は、メニューには出さない。
+    assert_equal MutationIntent::PROPOSABLE_TYPES, intent.dig("properties", "type", "enum")
+    refute_includes intent.dig("properties", "type", "enum"), "add_route"
+    assert_includes MutationIntent::TYPES, "add_route"
   end
 
   # ---- attention ---------------------------------------------------------

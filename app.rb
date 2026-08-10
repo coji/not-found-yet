@@ -287,14 +287,17 @@ class App < Sinatra::Base
 
     event = observe!(kind: "presence", family: "acquired")
 
-    # 器官は保存された文字列ではなく、いまの身体から描き直される。
-    if entry["form"] && entry["form"] != "still"
+    # 器官も 404 と同じ規則で皮を替える。
+    # ブラウザには皮つき、curl とクローラーには言葉だけ。
+    # form が "still" の器官（legacy の add_route）にも皮は着せる。
+    # 図を持たないことと、ページを持たないことは別。
+    if request.accept.any? { |a| a.to_s.include?("text/html") }
       content_type "text/html", charset: "utf-8"
       TrustedRenderer.render(entry, event)
     else
-      content_type entry["content_type"], charset: "utf-8"
-      body_text = DynamicRoutes.render(entry, event)
-      entry["content_type"] == "text/html" ? "<pre>#{h(body_text)}</pre>" : body_text
+      content_type "text/plain", charset: "utf-8"
+      "#{TrustedRenderer.lines_for(entry, event)
+           .map { |l| VoiceTemplate.fill(l, VoiceTemplate.context(event)) }.join("\n")}\n"
     end
   end
 
